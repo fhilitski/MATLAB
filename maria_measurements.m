@@ -1,4 +1,5 @@
-%%
+%% initialize variables
+%data has to be added manually
 birthday = datenum('13-Jun-2014');
 measurement_dates = {'15-Aug-2014','26-Jun-2014','18-Jun-2014','18-Sep-2014','22-Sep-2014','17-Oct-2014'...
     '15-Dec-2014','27-Feb-2015','24-Mar-2015','18-Jun-2015','20-Jul-2015','25-Aug-2015','14-Dec-2015','9-Jun-2016'};
