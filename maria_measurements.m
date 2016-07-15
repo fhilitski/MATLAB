@@ -26,7 +26,7 @@ h_head = plot(days_old, measurement_head_circ, 'o');
 title('Maria''s head circumference');
 
 
-%%
+%% plot normalized measurements
 h_fig = figure;
 normalized_w = measurement_weight / max(measurement_weight);
 normalized_h = measurement_height / max(measurement_height);
