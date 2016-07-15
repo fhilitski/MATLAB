@@ -11,7 +11,7 @@ today = datenum(date);
 days_old = datenum(measurement_dates)-birthday;
 
 
-%%
+%% plot the measurements 
 close all;
 h_fig_w = figure;
 h_weight = plot(days_old, measurement_weight, 'o');
