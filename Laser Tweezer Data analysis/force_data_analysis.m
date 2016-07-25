@@ -4,13 +4,13 @@ clear all;
 close all;
 
 %% Set-up file path and names
-path ='D:\Data - MT Sliding and Friction\2016\04-26-2016\';
-findcenter_path = 'findcenter 3\';
+path ='D:\Data - MT Sliding and Friction\7.22.2016\';
+findcenter_path = 'fc2\';
 findcenter_path = [path findcenter_path];
-findcenter_scan = 1;
-data_path = 'force 0\';
+findcenter_scan = 2;
+data_path = 'force 3\';
 acquisition_fname = 'acquisition.csv';
-cal_fname = ['cal 1 trap' '.dat'];
+cal_fname = ['cal 1 trap 1.04W' '.dat'];
 cal_averages = 2^5;
 number_of_traps_calibration = 1;
 %calibrated stiffness is divided by the number of traps in a run
@@ -21,7 +21,7 @@ data_fname = 'data.csv';
 img_fname = 'images.tif';
 
 plot_trap_positions = true;
-plot_findcenter_scans = true;
+plot_findcenter_scans = false;
 analyze_calibration = true;
 
 % number of points to average to get zero-force
@@ -33,12 +33,12 @@ zero_force_location = 'custom';
 %this is only relevant if location is 'custom'
 %otherwise, variable number_of_zero_force_points will determine the
 %interval from either start or end of the subset.
-zero_force_interval = 650:1:750;
+zero_force_interval = 15400:1:15500;
 
 analyze_subset = false;
 %indicate subset indexes here
 subset_start = 1;
-subset_end = 3599;
+subset_end = 1200;
 
 overlay_scale = 20; %pre-define overlay scale; it will be calculated later
 laser_power = 0; %pre-define laser power variable
@@ -166,12 +166,18 @@ else
 end;
 fprintf('QPD sensitivity X-channel: %1.2f nm/V\n', QPDx);
 fprintf('QPD sensitivity Y-channel: %1.2f nm/V\n', QPDy);
+use_linear_QPD_map = true;
+if use_linear_QPD_map 
+    fprintf('Using LINEAR QPD mapping!\n');
+else
+    fprinf('Using exact QPD mapping, please check the fit before using');
+end;
 
 %% analyze calibration file
 if (analyze_calibration)
     min_points_to_average = 10; %parameter for analyze_tweezer_calibration
     high_frequency_cutoff = 10000; %parameter for analyze_tweezer_calibration
-    low_frequency_cutoff = 50;
+    low_frequency_cutoff = 100;
     [fc_x,fc_y, diff_x, diff_y] =...
         analyze_tweezer_calibration(findcenter_path, cal_fname, cal_averages,...
         min_points_to_average, high_frequency_cutoff, low_frequency_cutoff);
@@ -403,15 +409,17 @@ end;
 %V into pos_x in nm:
 % x_nm = f(x_V) and y_nm = f(y_V)
 %and then into force through trap_stiffness k
-
-%the simplest possible mapping is linear:
-force_x_lin = pos_x.*QPDx.*k_x/(number_of_traps_run/number_of_traps_calibration);
-force_y_lin = pos_y.*QPDy.*k_y/(number_of_traps_run/number_of_traps_calibration);
-
-%the more advanced map is from the inverse mapping function
-force_x = QPD_map_x(pos_x).*k_x/(number_of_traps_run/number_of_traps_calibration);
-force_y = QPD_map_y(pos_y).*k_y/(number_of_traps_run/number_of_traps_calibration);
-
+if use_linear_QPD_map
+    %the simplest possible mapping is linear:
+    force_x_lin = pos_x.*QPDx.*k_x/(number_of_traps_run/number_of_traps_calibration);
+    force_y_lin = pos_y.*QPDy.*k_y/(number_of_traps_run/number_of_traps_calibration);
+    force_x = force_x_lin;
+    force_y = force_y_lin;
+else
+    %the more advanced map is from the inverse mapping function
+    force_x = QPD_map_x(pos_x).*k_x/(number_of_traps_run/number_of_traps_calibration);
+    force_y = QPD_map_y(pos_y).*k_y/(number_of_traps_run/number_of_traps_calibration);
+end;
 units_xy = 'pN';
 % convert time into s
 time_s = t*10^-3;

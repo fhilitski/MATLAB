@@ -124,11 +124,14 @@ d = [];
 f = [];
 f_y = [];
 f_x = [];
-relevant = [2,3,4,5,6];
+if ~(exist('relevant','var'))
+    %if variable describing relelvant intervals does not exist yet
+    relevant = 7:1:11;
+end;
 for i=relevant
     d = cat(1, d, distances{i});
     f = cat(1, f, forces{i});
-    f_y = cat(1, f_y, -forces_y{i});
+    f_y = cat(1, f_y, forces_y{i});
     f_x = cat(1, f_x, forces_x{i});
 end;
 
@@ -141,11 +144,12 @@ ylabel(['Force (' units_xy ')']);
 xlabel('Trap separation (nm)');
 title('Force - distance curve');
 axis tight;
+grid on;
 
 %bin force based on the fixed displacement values and plot that 
 [trap_dist_binned, force_binned, force_error] = binned_xy(d,f);
 errorbar(trap_dist_binned, force_binned, force_error,'o','Color',color_average,'LineWidth',1);
-plot(trap_dist_binned, force_binned,'.')
+plot(trap_dist_binned, force_binned,'.');
 
 %find the separation that corresponds to min. force - that's the
 %equilibrium separation
@@ -168,6 +172,7 @@ plot(d_min, f_min, 'or','LineWidth',3,'MarkerSize',10);
 h_force_y_vs_displacement_corrected = figure;
 plot(d, f_y,'.','Color',color_raw);
 hold on;
+grid on;
 plot(d, smooth(f_y,5),'.','LineWidth',2,'Color',color_smooth);
 ylabel(['Force (' units_xy ')']);
 xlabel('Trap separation (nm)');
@@ -197,6 +202,7 @@ ylabel(['Force (' units_xy ')']);
 xlabel('Trap separation (nm)');
 title('Force (x) - distance curve');
 axis tight;
+grid on;
 %bin force based on the fixed displacement values and plot that 
 [trap_dist_binned_x, force_binned_x, force_error_x] = binned_xy(d,f_x);
 errorbar(trap_dist_binned_x, force_binned_x, force_error_x,'o','Color',color_average,'LineWidth',1);
@@ -305,8 +311,8 @@ if (exist('f_fwd_binned','var') == 1)
     %check if fowrward and back runs were separated
     save(filename,...
     'f_fwd_binned','f_back_binned','d_fwd_binned','d_back_binned',...
-    'intervals', 'distances', 'forces','forces_x','forces_y');
+    'intervals', 'relevant', 'distances', 'forces','forces_x','forces_y');
 else
     save(filename,...
-    'intervals', 'distances', 'forces','forces_x','forces_y');
+    'intervals', 'relevant', 'distances', 'forces','forces_x','forces_y');
 end;
