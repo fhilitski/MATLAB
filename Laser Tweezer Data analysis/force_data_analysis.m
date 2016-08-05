@@ -4,13 +4,13 @@ clear all;
 close all;
 
 %% Set-up file path and names
-path ='D:\Data - MT Sliding and Friction\2016\8.03.2016\';
-findcenter_path = 'fc 3\';
+path ='D:\Data - MT Sliding and Friction\2016\08-05-2016\';
+findcenter_path = 'findcenter 1\';
 findcenter_path = [path findcenter_path];
 findcenter_scan = 1;
-data_path = 'stretch 5\';
+data_path = 'force 1\';
 acquisition_fname = 'acquisition.csv';
-cal_fname = ['cal' '.dat'];
+cal_fname = ['cal 1 trap 0.49W' '.dat'];
 cal_averages = 2^5;
 number_of_traps_calibration = 1;
 %calibrated stiffness is divided by the number of traps in a run
@@ -793,7 +793,7 @@ axis tight;
 legend('raw F_x', 'smoothed F_x', 'rotated F_x');
 
 
-%%
+%% get user onput of the laser positions
 %set the force measurement point center point on the image
 %do if for the first image until the user is satidfied with the location of
 %the force vector and traps.
@@ -852,7 +852,7 @@ while (~user_satisfied)
         user_satisfied = true;
     end;
 end;
-%%
+%% process all video files and create movies
 if (images_saved)
     %determine the size of overlay
     [m,n,l] = size(overlay_img);
@@ -880,7 +880,7 @@ if (images_saved)
     end;
 end;
 
-%%
+%% save the video
 %write video
 if analyze_subset
     analysis_folder = ['analysis_' num2str(subset_start) '-' num2str(subset_end) '\'];
