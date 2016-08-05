@@ -28,7 +28,7 @@ analyze_calibration = true;
 use_linear_QPD_map = true;
 
 % number of points to average to get zero-force
-number_of_zero_force_points = 300;
+number_of_zero_force_points = 100;
 % location of zero-force points
 % accepted values are 'start', 'end' and 'custom'
 zero_force_location = 'custom';
