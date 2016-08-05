@@ -8,7 +8,7 @@ path ='D:\Data - MT Sliding and Friction\2016\8.03.2016\';
 findcenter_path = 'fc 3\';
 findcenter_path = [path findcenter_path];
 findcenter_scan = 1;
-data_path = 'stretch 3\';
+data_path = 'stretch 5\';
 acquisition_fname = 'acquisition.csv';
 cal_fname = ['cal' '.dat'];
 cal_averages = 2^5;
@@ -38,7 +38,7 @@ zero_force_location = 'custom';
 %interval from either start or end of the subset.
 %zero_force_interval = 1650:1:1750;
 
-analyze_subset = true;
+analyze_subset = false;
 %indicate subset indexes here
 subset_start = 1;
 subset_end = 23300;

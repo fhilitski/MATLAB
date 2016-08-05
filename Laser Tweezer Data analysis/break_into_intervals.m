@@ -354,8 +354,6 @@ axis tight;
 grid on;
 legend({'Trap separation', 'Bead Separation'});
 
-
-
 %% plot force vs trap separation and bead displacement to compare
 h_force_vs_traps_and_beads = figure;
 plot(trap_dist_binned,force_binned,'.-');
@@ -593,3 +591,7 @@ prettify_plot(fig_ref);
 savefig(fig_ref,f_filename);
 saveas(fig_ref, f_filename,'jpeg');
 
+%% open cftool findow
+cftool(trap_dist_binned_y, force_binned_y);
+cftool(trap_dist_binned, force_binned);
+cftool(bead_dist_binned, force_binned_b);
