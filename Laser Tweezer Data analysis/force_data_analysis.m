@@ -4,13 +4,13 @@ clear all;
 close all;
 
 %% Set-up file path and names
-path ='D:\Data - MT Sliding and Friction\2016\08-05-2016\';
-findcenter_path = 'findcenter 1\';
+path ='D:\Data - MT Sliding and Friction\2016\08-08-2016\';
+findcenter_path = 'fc 2\';
 findcenter_path = [path findcenter_path];
 findcenter_scan = 1;
-data_path = 'force 5\';
+data_path = 'stretch 2\';
 acquisition_fname = 'acquisition.csv';
-cal_fname = ['cal 1 trap 1.08W' '.dat'];
+cal_fname = ['cal' '.dat'];
 cal_averages = 2^5;
 number_of_traps_calibration = 1;
 %calibrated stiffness is divided by the number of traps in a run
@@ -23,7 +23,7 @@ img_fname = 'images.tif';
 objective = '100x'; %'100x' or '60x' for two possible objectives
 
 plot_trap_positions = true;
-plot_findcenter_scans = true;
+plot_findcenter_scans = false;
 analyze_calibration = false;
 use_linear_QPD_map = true;
 
@@ -38,20 +38,19 @@ zero_force_location = 'custom';
 %interval from either start or end of the subset.
 %zero_force_interval = 1650:1:1750;
 
-analyze_subset = false;
+analyze_subset = true;
 %indicate subset indexes here
-subset_start = 1;
-subset_end = 23300;
+subset_start = 3100;
+subset_end = 16784;
 
 overlay_scale = 20; %pre-define overlay scale; it will be calculated later
-laser_power = 0.50; %pre-define laser power variable
 
 %% read acquisition parameters
 fname = [path data_path acquisition_fname];
 acq_file_found = true;
 
 try [Fsampling,Nsamples,Velocity,MaxMove,...
-        N_traps,T_delay,converted,Laser_Power,AODx,AODy,QPDx_acq,QPDy_acq] = read_acq_data(fname);
+        N_traps,T_delay,converted,laser_power,AODx,AODy,QPDx_acq,QPDy_acq] = read_acq_data(fname);
 catch error
     acq_file_found = false;
     %error is encountered while reading the acquisition data
@@ -136,7 +135,7 @@ if acq_file_found
     fprintf('Traps moving: %i \n', MaxMove+1);
     %no traps are moving if this manual force measurement code
     %ignore this parameter
-    fprintf('Laser Power, W: %2.2f \n', Laser_Power);
+    fprintf('Laser Power, W: %2.2f \n', laser_power);
 else
     disp(['File ' filename ' was not found.']);
     disp('This will not provide you with real data...');
@@ -191,7 +190,7 @@ end;
 if (analyze_calibration)
     min_points_to_average = 20; %parameter for analyze_tweezer_calibration
     high_frequency_cutoff = 10000; %parameter for analyze_tweezer_calibration
-    low_frequency_cutoff = 100;
+    low_frequency_cutoff = 500;
     [fc_x,fc_y, diff_x, diff_y] =...
         analyze_tweezer_calibration(findcenter_path, cal_fname, cal_averages,...
         min_points_to_average, high_frequency_cutoff, low_frequency_cutoff);
@@ -221,12 +220,8 @@ else
     %the values are hard-coded for now
     %see the xls file with historical trap stiffness values
     %this data can be acquired directly from the Excel file in future...
-    disp('! Using pre-determined trap stiffness !');
-    %laser_power = input('Enter laser power (W): ');
-    %laser_power = Laser_Power;
-    if (Laser_Power ~= laser_power) && (~analyze_calibration)
-        disp('Previously specified laser power is inconsistent!');
-    end;
+    disp('!Using pre-determined trap stiffness!');
+    laser_power = input('Enter laser power (W): ');
     k_x = 0.053*laser_power; %k_x in pN/nm;
     k_y = 0.111*laser_power; %k_y on pN/nm;
     
@@ -246,9 +241,7 @@ else
     disp('-------------------------------------------------');
 end;
 
-
 %% plot trap positions
-
 %Define some necessary constants for future use:
 %parameter for plotting smoothed force vs time/frame
 force_smoothing = 5;
@@ -749,6 +742,8 @@ total_force_fd_curve = total_force_subset(trap_dist_fd_ind);
 force_y_fd_curve = force_y_subset(trap_dist_fd_ind);
 force_x_fd_curve = force_x_subset(trap_dist_fd_ind);
 bead_dist_fd_curve = bead_dist_subset(trap_dist_fd_ind);
+
+bead_dist_fd_curve_bf = bead_dist_bf(trap_dist_fd_ind);
 
 %variables in the trap line reference frame
 trap_dist_fd_curve_r = trap_dist_subset_r(trap_dist_fd_ind);
