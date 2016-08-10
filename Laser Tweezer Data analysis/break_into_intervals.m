@@ -198,7 +198,8 @@ plot(trap_dist_binned, force_binned,'.');
 
 %find the separation that corresponds to min. force - that's the
 %equilibrium separation
-[f_min, i_f_min] = min(force_binned);
+[f_min, i_f_min] = min(force_binned(50:end));
+i_f_min = i_f_min + 50-1;
 d_min = trap_dist_binned(i_f_min);
 fprintf(1,'Equilibrium trap separation: %.0f nm\n',d_min);
 hold on;
@@ -368,7 +369,7 @@ legend({'Trap separation', 'Bead Separation'});
 
 
 %% analysis with fraying
-fraying = false;
+fraying = true;
 if (fraying)
     d_fwd = [];
     d_back = [];
@@ -380,8 +381,8 @@ if (fraying)
     f_fwd_y = [];
     f_fwd_x = [];
     
-    relevant_fwd = [6,8];
-    relevant_back = [7,9];
+    relevant_fwd = [9,11,13,15];
+    relevant_back = [10,12,14,16];
     
     for i=relevant_fwd
         d_fwd = cat(1, d_fwd, distances{i});

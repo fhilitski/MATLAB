@@ -8,9 +8,9 @@ path ='D:\Data - MT Sliding and Friction\2016\08-05-2016\';
 findcenter_path = 'findcenter 1\';
 findcenter_path = [path findcenter_path];
 findcenter_scan = 1;
-data_path = 'force 1\';
+data_path = 'force 5\';
 acquisition_fname = 'acquisition.csv';
-cal_fname = ['cal 1 trap 0.49W' '.dat'];
+cal_fname = ['cal 1 trap 1.08W' '.dat'];
 cal_averages = 2^5;
 number_of_traps_calibration = 1;
 %calibrated stiffness is divided by the number of traps in a run
@@ -24,7 +24,7 @@ objective = '100x'; %'100x' or '60x' for two possible objectives
 
 plot_trap_positions = true;
 plot_findcenter_scans = true;
-analyze_calibration = true;
+analyze_calibration = false;
 use_linear_QPD_map = true;
 
 % number of points to average to get zero-force
@@ -191,7 +191,7 @@ end;
 if (analyze_calibration)
     min_points_to_average = 20; %parameter for analyze_tweezer_calibration
     high_frequency_cutoff = 10000; %parameter for analyze_tweezer_calibration
-    low_frequency_cutoff = 30;
+    low_frequency_cutoff = 100;
     [fc_x,fc_y, diff_x, diff_y] =...
         analyze_tweezer_calibration(findcenter_path, cal_fname, cal_averages,...
         min_points_to_average, high_frequency_cutoff, low_frequency_cutoff);
@@ -227,8 +227,8 @@ else
     if (Laser_Power ~= laser_power) && (~analyze_calibration)
         disp('Previously specified laser power is inconsistent!');
     end;
-    k_x = 0.0517*laser_power; %k_x in pN/nm;
-    k_y = 0.1097*laser_power; %k_y on pN/nm;
+    k_x = 0.053*laser_power; %k_x in pN/nm;
+    k_y = 0.111*laser_power; %k_y on pN/nm;
     
     fprintf('Trap stiffness k_x: %1.4f pN/nm\n', k_x);
     fprintf('Trap stiffness k_y: %1.4f pN/nm\n', k_y);
@@ -616,6 +616,7 @@ legend('Distance x', 'Distance y', 'Distance total','O force interval','Calulate
 
 %plot F_x, F_y and z vs frame index in the same plot using independent y-axes
 h_fig_all_frames = figure;
+subplot(2,1,1);
 [h_axes, h_plot_f, h_plot_z] = plotyy([subset',subset'],...
     [force_x(subset),force_y(subset)],subset, z(subset));
 ylabel(h_axes(2), 'Z-position (\mum)');
@@ -625,7 +626,8 @@ title('X-force, Y-force and z-position together');
 legend('F_x','F_y','z');
 axis tight;
 
-h_fig_all_frames = figure;
+%plot forces after rotation into the filament frame
+subplot(2,1,2);
 [h_axes, h_plot_f, h_plot_z] = plotyy([subset',subset'],...
     [force_x_r(subset),force_y_r(subset)],subset, z(subset));
 ylabel(h_axes(2), 'Z-position (\mum)');
@@ -649,7 +651,10 @@ axis tight;
 % title('Total measured force');
 % axis tight;
 %
+
+%plot total force vs frame
 h_force_frames = figure;
+subplot(2,1,1);
 plot(total_force(subset),'.','Color',color_raw);
 hold on;
 plot(smooth(total_force(subset),force_smoothing),'-','LineWidth',2,'Color',color_smooth);
@@ -658,7 +663,8 @@ xlabel('Substack frame #');
 title('Total measured force');
 axis tight;
 
-h_force_frames_r = figure;
+%plot total force vs frame in the rotated frame of reference
+subplot(2,1,2);
 plot(total_force_r(subset),'.','Color',color_raw);
 hold on;
 plot(smooth(total_force_r(subset),force_smoothing),'-','LineWidth',2,'Color',color_smooth);
@@ -667,9 +673,9 @@ xlabel('Substack frame #');
 title('Total measured force ROTATED');
 axis tight;
 
-
 %plot the angle of the force vector
 h_angle = figure;
+subplot(2,1,1);
 %plot(time_s(subset_start:subset_end),theta(subset_start:subset_end),'.r');
 plot(theta(subset),'.');
 hold on;
@@ -682,7 +688,8 @@ xlabel('Substack frame #');
 title('Angle of the force vector');
 axis tight;
 
-h_angle_rotated = figure;
+%plot the rotated angle
+subplot(2,1,2);
 %plot(time_s(subset_start:subset_end),theta(subset_start:subset_end),'.r');
 plot(theta_r(subset),'.');
 hold on;
