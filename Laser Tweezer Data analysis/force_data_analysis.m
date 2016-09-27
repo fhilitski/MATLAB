@@ -4,16 +4,16 @@ clear all;
 close all;
 
 %% Set-up file path and names
-path ='D:\Data - MT Sliding and Friction\2016\08-08-2016\';
-findcenter_path = 'fc 2\';
+path ='D:\Data - MT Sliding and Friction\2016\09-20-2016\';
+findcenter_path = 'findcenter 1\';
 findcenter_path = [path findcenter_path];
-findcenter_scan = 1;
-data_path = 'stretch 2\';
+findcenter_scan = 3;
+data_path = 'force 2\';
 acquisition_fname = 'acquisition.csv';
-cal_fname = ['cal' '.dat'];
-cal_averages = 2^5;
+cal_fname = ['cal 1 trap 0.79W' '.dat'];
+
 number_of_traps_calibration = 1;
-%calibrated stiffness is divided by the number of traps in a run
+%calibratedpath stiffness is divided by the number of traps in a run
 %We assume that the calibration is done with a single trap
 number_of_traps_run = 2;
 
@@ -38,10 +38,10 @@ zero_force_location = 'custom';
 %interval from either start or end of the subset.
 %zero_force_interval = 1650:1:1750;
 
-analyze_subset = true;
+analyze_subset = false;
 %indicate subset indexes here
-subset_start = 3100;
-subset_end = 16784;
+subset_start = 1;
+subset_end = 5500;
 
 overlay_scale = 20; %pre-define overlay scale; it will be calculated later
 
@@ -49,20 +49,7 @@ overlay_scale = 20; %pre-define overlay scale; it will be calculated later
 fname = [path data_path acquisition_fname];
 acq_file_found = true;
 
-try [Fsampling,Nsamples,Velocity,MaxMove,...
-        N_traps,T_delay,converted,laser_power,AODx,AODy,QPDx_acq,QPDy_acq] = read_acq_data(fname);
-catch error
-    acq_file_found = false;
-    %error is encountered while reading the acquisition data
-    %this usually happens when the file is not found
-    %define default AOD  and QPD sensitivities instead
-    disp('Error encountered while trying to get acq. options!');
-    disp(error.message);
-    disp('Using default AOD conversion from MHz to nm');
-    QPDx_acq = NaN;
-    QPDy_acq = NaN;
-end;
-
+%define AOD conversion based on the objective used
 switch objective
     case '100x'
         AODx_obj = -2668; %default AOD conversion of nm/MHz
@@ -76,13 +63,30 @@ switch objective
         disp('Wrong objective information!');
 end;
 
+try [Fsampling,Nsamples,Velocity,MaxMove,...
+        N_traps,T_delay,converted,laser_power,AODx,AODy,QPDx_acq,QPDy_acq] = read_acq_data(fname);
+catch error
+    acq_file_found = false;
+    %error is encountered while reading the acquisition data
+    %this usually happens when the file is not found
+    %define default AOD  and QPD sensitivities instead
+    disp('Error encountered while trying to get acq. options!');
+    disp(error.message);
+    QPDx_acq = NaN;
+    QPDy_acq = NaN;
+    disp('Using default AOD conversion from MHz to nm');
+    AODx = AODx_obj;
+    AODy = AODy_obj;
+end;
+
+%check if AOD recorded in the acquisition data is consistent with the
+%objective
 if AODx ~= AODx_obj
     disp('AOD x conversion rate is incostistent');
 end;
 if AODy ~= AODy_obj
     disp('AOD y conversion rate is incostistent');
 end;
-
 
 %% read the acquired data
 trap_y2 = [];
@@ -190,10 +194,11 @@ end;
 if (analyze_calibration)
     min_points_to_average = 20; %parameter for analyze_tweezer_calibration
     high_frequency_cutoff = 10000; %parameter for analyze_tweezer_calibration
-    low_frequency_cutoff = 500;
+    low_frequency_cutoff = 50;
+    cal_averages = 2^5;
     [fc_x,fc_y, diff_x, diff_y] =...
         analyze_tweezer_calibration(findcenter_path, cal_fname, cal_averages,...
-        min_points_to_average, high_frequency_cutoff, low_frequency_cutoff);
+        min_points_to_average, high_frequency_cutoff, low_frequency_cutoff, true);
     
     D_x = diff_x*QPDx^2; %Dx in nm^2/s
     D_y = diff_y*QPDy^2; %Dy in nm^2/s
@@ -222,8 +227,8 @@ else
     %this data can be acquired directly from the Excel file in future...
     disp('!Using pre-determined trap stiffness!');
     laser_power = input('Enter laser power (W): ');
-    k_x = 0.053*laser_power; %k_x in pN/nm;
-    k_y = 0.111*laser_power; %k_y on pN/nm;
+    k_x = 0.055*laser_power; %k_x in pN/nm;
+    k_y = 0.112*laser_power; %k_y on pN/nm;
     
     fprintf('Trap stiffness k_x: %1.4f pN/nm\n', k_x);
     fprintf('Trap stiffness k_y: %1.4f pN/nm\n', k_y);
@@ -317,14 +322,17 @@ if (traps_recorded)
     %trap_y1_nm_r = trap_y1_nm;
     %rap_y2_nm_r = trap_y2_nm;
     
-    %%calculate the angle between line connecting the traps and the
-    %y-axis
+    %calculate the angle between line connecting the traps and the y-axis
+    %in radians
     trap_line_angle_rad = atan2(trap_separation_y, trap_separation_x);
+    %and degrees
     trap_line_angle_deg = atan2d(trap_separation_y, trap_separation_x);
+    %calculate rotation matrix for each datapoint
     for i = 1:1:length(trap_line_angle_deg)
         alpha = 90 - trap_line_angle_deg(i);
         trap_line_rotation(:,:,i) = [cosd(alpha), -sind(alpha);...
             sind(alpha),  cosd(alpha)];
+              %trap coordinates in the new coordinate system
     %         rotated_trap_1 = trap_line_rotation(:,:,i) * [trap_x1_nm(i); trap_y1_nm(i)];
     %         rotated_trap_2 = trap_line_rotation(:,:,i) * [trap_x2_nm(i); trap_y2_nm(i)];
     %         trap_x1_nm_r(i) = rotated_trap_1(1);
@@ -348,7 +356,7 @@ if (traps_recorded)
         %     plot(trap_y1_pix,trap_x1_pix, 'ob');
         %     hold on;
         %     plot( trap_y2_pix,trap_x2_pix, 'or');
-        %   % %This plots trap positions vs time
+        %     %This plots trap positions vs time
         %     h_fig_trap_y1 = figure;
         %     plot(time_s(subset_start:subset_end), trap_y1_pix(subset_start:subset_end), '.b');
         %     title('Moving trap1 position, y axis');
@@ -446,7 +454,10 @@ if (traps_recorded)
             %and to enable seamlessly readin the saved runs
             hold on;
             zero_force_points = zero_force_interval;
-            plot(subset(zero_force_points),trap_dist_subset(zero_force_points),'-','LineWidth',3);
+            x1_index = zero_force_points(1) - subset_start + 1;
+            x2_index = zero_force_points(end) - subset_start + 1;
+            plot(subset(x1_index:x2_index),trap_dist_subset(x1_index:x2_index),'-','LineWidth',3);
+            %plot(subset(zero_force_points),trap_dist_subset(zero_force_points),'-','LineWidth',3);
         end;
         
         %plot rotated coords for consistency check
@@ -482,7 +493,9 @@ if (converted)
     %revert back the conversion, i.e. go back to volts
     pos_x = pos_x ./ QPDx_acq;
     pos_y = pos_y ./ QPDy_acq;
-    disp('conversion reverted...')
+    disp('conv  ersion reverted...');
+    %conversion is now reverted, set the flage to 0
+    converted = 0;
 end;
 %now all readings are in volts
 %convert them into nm with the appropraite function that maps pos_x in
@@ -523,15 +536,16 @@ total_force = sqrt(force_x.^2 + force_y.^2);
 theta = atan2d(force_y,force_x);
 
 %calculate forces in the rotated frame (bundle frame of reference)
+%first, initialize variables for forces x and y in the rotated frame
 force_x_r = force_x;
 force_y_r = force_y;
-
-%rotate to the trap coordinate frame
+%rotate forces F_x and F_y to the trap coordinate frame
 for i = 1:1:length(force_x)
     a = trap_line_rotation(:,:,i)*[force_x(i); force_y(i)];
     force_x_r(i) = a(1);
     force_y_r(i) = a(2);
 end;
+%calculated distance and angle in the rotated frame
 total_force_r = sqrt(force_x_r.^2 + force_y_r.^2);
 theta_r = atan2d(force_y_r,force_x_r);
 
@@ -544,8 +558,19 @@ bead_separation_x = trap_separation_x - pos_x_nm_corrected.*2;
 trap_separation_y = trap_y2_nm - trap_y1_nm;
 bead_separation_y = trap_separation_y - pos_y_nm_corrected.*2;
 bead_dist = sqrt(bead_separation_x.^2 + bead_separation_y.^2);
-bead_dist_subset = bead_dist(subset);
+%rotate bead distance to the new, rotated frame of reference
+%(note - it should not change as rotation preserves distances)
+%this is ony for the consistence check;
+for i = 1:1:length(bead_separation_x)
+    a = trap_line_rotation(:,:,i)*[bead_separation_x(i); bead_separation_y(i)];
+    bead_separation_x_r(i) = a(1);
+    bead_separation_y_r(i) = a(2);
+end;
+bead_dist_r = sqrt(bead_separation_x_r.^2 + bead_separation_y_r.^2);
+
+%plot calculated bead distance on the same figure as trap distance
 figure(h_fig_trap_dist);
+bead_dist_subset = bead_dist(subset);
 hold on;
 plot(subset, bead_dist_subset);
 legend('Distance x', 'Distance y', 'Distance total','O force interval','Calulated bead separation');
@@ -743,7 +768,7 @@ force_y_fd_curve = force_y_subset(trap_dist_fd_ind);
 force_x_fd_curve = force_x_subset(trap_dist_fd_ind);
 bead_dist_fd_curve = bead_dist_subset(trap_dist_fd_ind);
 
-bead_dist_fd_curve_bf = bead_dist_bf(trap_dist_fd_ind);
+%bead_dist_fd_curve_bf = bead_dist_bf(trap_dist_fd_ind);
 
 %variables in the trap line reference frame
 trap_dist_fd_curve_r = trap_dist_subset_r(trap_dist_fd_ind);
@@ -762,12 +787,13 @@ title('Force - distance curve');
 axis tight;
 
 %bin force based on the fixed trap displacement values and plot that
-[trap_dist_binned, force_binned, force_error] = binned_xy(trap_dist_fd_curve, total_force_fd_curve);
+bin_width = 10; %width of the bin in nm;
+[trap_dist_binned, force_binned, force_error] = binned_xy(trap_dist_fd_curve, total_force_fd_curve, false, bin_width);
 errorbar(trap_dist_binned, force_binned, force_error,'o','Color',color_average,'LineWidth',1);
 %also bin in the rotated frame
-[trap_dist_binned_r, force_binned_r, force_error_r] = binned_xy(trap_dist_fd_curve_r, total_force_fd_curve_r);
+[trap_dist_binned_r, force_binned_r, force_error_r] = binned_xy(trap_dist_fd_curve_r, total_force_fd_curve_r, false, bin_width);
 %bin force vs bead displacement
-[bead_dist_binned, force_binned_b, force_error_b] = binned_xy(bead_dist_fd_curve, total_force_fd_curve);
+[bead_dist_binned, force_binned_b, force_error_b] = binned_xy(bead_dist_fd_curve, total_force_fd_curve, false, bin_width);
 errorbar(bead_dist_binned, force_binned_b, force_error_b,'.');
 
 %plot y-force v displacement
@@ -795,7 +821,7 @@ axis tight;
 legend('raw F_x', 'smoothed F_x', 'rotated F_x');
 
 
-%% get user onput of the laser positions
+%% get user input to determine the laser trap position
 %set the force measurement point center point on the image
 %do if for the first image until the user is satidfied with the location of
 %the force vector and traps.
@@ -811,7 +837,7 @@ while (~user_satisfied)
         disp(['Working with video file: ' img_fname]);
         img_info = imfinfo(fname);
         total_frames = length(img_info);
-        image_index = subset_start + 3201;
+        image_index = subset_start;
         img = imread(fname, image_index);
         [m,n,l] = size(img); %m is y-axis, n is x-axis
         img_dimensions = min(size(img));
@@ -965,7 +991,9 @@ disp(['Data saved in ' var_fname ' folder!']);
 %trap_dist_binned_r
 %force_binned_r
 disp('Saving force-distance variables in the bundle reference frame');
+bead_dist_fd_curve_r = bead_dist_fd_curve; %since distances are not affected by rotation 
+%we just re-define this variable. 
 var_fname = [analysis_path 'forces-displacement_vars_bundle_frame.mat'];
-save(var_fname,'trap_dist_fd_curve_r','total_force_fd_curve_r','force_y_fd_curve_r',...
+save(var_fname,'bead_dist_fd_curve', 'trap_dist_fd_curve_r','total_force_fd_curve_r','force_y_fd_curve_r',...
     'force_x_fd_curve_r','trap_dist_binned_r','force_binned_r');
 disp(['Data saved in ' var_fname ' folder!']);

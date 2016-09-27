@@ -5,18 +5,27 @@ close all;
 [fname,filepath,f_idx] = uigetfile('*.mat','select data file');
 load([filepath fname]);
 
-%% fix issue with many previous runs that do not have bead_dist_fd_curve variable
+%% temporary variable re-assignment
+trap_dist_fd_curve = trap_dist_fd_curve_r;
+total_force_fd_curve = total_force_fd_curve_r;
+force_x_fd_curve = force_x_fd_curve_r;
+force_y_fd_curve = force_y_fd_curve_r;
+bead_dist_fd_curve = bead_dist_fd_curve_r;
+
+
+%% fix the issue with many previous runs that do not have bead_dist_fd_curve variable
 if (~exist('bead_dist_fd_curve', 'var'))
     bead_dist_fd_curve = trap_dist_fd_curve;
     warning('bead_dist_fd_curve does not exist');
 end;
 
-%%
-%this is a temporary variable re-assignment
-trap_dist_fd_curve = trap_dist_fd_curve_r;
-total_force_fd_curve = total_force_fd_curve_r;
-force_x_fd_curve = force_x_fd_curve_r;
-force_y_fd_curve = force_y_fd_curve_r;
+if (~exist('bead_dist_fd_curve_bf', 'var'))
+    bead_dist_fd_curve_bf = bead_dist_fd_curve;
+    warning('Brightfield distance is not recorded!');
+    brightfield = false;
+end;
+
+
 
 
 %% divide trap separation into intervals
@@ -31,7 +40,8 @@ color_smooth = [ 0.502  0.502   0.502];
 %define color for block-averaged data
 color_average = [0  0.447   0.741];
 units_xy = 'pN';
-
+%bin width for plotting binned force-displacement curves in nm
+bin_width = 10;
 
 %the neccessary variables are
 %trap_dist_fd_curve = d;
@@ -72,8 +82,8 @@ for i = 1:n_intervals
     intervals{i} = d_start:1:d_end;
     distances{i} = trap_dist_fd_curve(intervals{i});
     forces{i} = total_force_fd_curve(intervals{i});
-    forces_x{i} = force_x_fd_curve(intervals{i});
     forces_y{i} = force_y_fd_curve(intervals{i});
+    forces_x{i} = force_x_fd_curve(intervals{i});
     bead_distances{i} = bead_dist_fd_curve(intervals{i});
     bead_distances_bf{i} = bead_dist_fd_curve_bf(intervals{i});
     
@@ -121,12 +131,12 @@ for i = 1: n_intervals
 end;
 hold off;
 pause off;
-ylabel(['Force (' units_xy ')']);
+ylabel(['Force (pN)']);
 xlabel('Trap separation (nm)');
-title('X-axis Force - distance curve');
+title('Force-distance curve');
 axis tight
 
-%% plot force v bead distance for each interval
+ %% plot force v bead distance for each interval
 
 h_f = figure;
 h_box = annotation(h_f,'textbox',[0.5 0.8 0.04 0.1],'FitBoxToText','on');
@@ -134,7 +144,9 @@ pause on;
 for i = 1: n_intervals
     h_line = plot(bead_distances{i},forces{i},'.-');
     hold on;
-    h_line_bf = plot(bead_distances_bf{i},forces{i},'.-');
+    if (brightfield)
+        h_line_bf = plot(bead_distances_bf{i},forces{i},'.-');
+    end;
     % Create textbox
     set(h_box,'String',{['Interval: ' num2str(i)]});
     if (i < n_intervals)
@@ -143,19 +155,18 @@ for i = 1: n_intervals
 end;
 hold off;
 pause off;
-ylabel(['Force (' units_xy ')']);
-xlabel('Trap separation (nm)');
-title('X-axis Force - distance curve');
+ylabel(['Force (pN)']);
+xlabel('Bead separation (nm)');
+title('Force - distance curve');
 axis tight;
 
-%% analysis of the relevant force-displacement intervals
+  %% analysis of the relevant force-displacement intervals
 %define color for raw data
 color_raw = [0.831  0.816    0.784];
 %define color for smoothed data
 color_smooth = [ 0.502  0.502   0.502];
 %define color for block-averaged data
 color_average = [0  0.447   0.741];
-units_xy = 'pN';
 
 d = [];
 b_d = []; %bead distance
@@ -179,23 +190,23 @@ for i=relevant
     b_d = cat(1, b_d, bead_distances{i});
     b_d_bf = cat(1, b_d_bf, bead_distances_bf{i});
     f = cat(1, f, forces{i});
-    f_y = cat(1, f_y, forces_y{i});
+    f_y = cat(1, f_y, -forces_y{i});
     f_x = cat(1, f_x, forces_x{i});
 end;
 
-%% plot total force v displacement
+ %% plot total force v trap separation
 h_force_vs_displacement_corrected = figure;
 plot(d, f,'.','Color',color_raw);
 hold on;
 %plot(d, smooth(f,5),'.','LineWidth',2,'Color',color_smooth);
-ylabel(['Force (' units_xy ')']);
+ylabel(['Force (pN)']);
 xlabel('Trap separation (nm)');
 title('Force - distance curve');
 axis tight;
 grid on;
 
 %bin force based on the fixed displacement values and plot that
-[trap_dist_binned, force_binned, force_error] = binned_xy(d,f);
+[trap_dist_binned, force_binned, force_error] = binned_xy(d,f,false,bin_width);
 errorbar(trap_dist_binned, force_binned, force_error,'o','Color',color_average,'LineWidth',1);
 plot(trap_dist_binned, force_binned,'.');
 
@@ -222,12 +233,12 @@ plot(d, f_y,'.','Color',color_raw);
 hold on;
 grid on;
 %plot(d, smooth(f_y,5),'.','LineWidth',2,'Color',color_smooth);
-ylabel(['Force (' units_xy ')']);
+ylabel(['Force (pN)']);
 xlabel('Trap separation (nm)');
 title('Force (y) - distance curve');
 axis tight;
 %bin force based on the fixed displacement values and plot that
-[trap_dist_binned_y, force_binned_y, force_error_y] = binned_xy(d,f_y);
+[trap_dist_binned_y, force_binned_y, force_error_y] = binned_xy(d,f_y,false,bin_width);
 errorbar(trap_dist_binned_y, force_binned_y, force_error_y,'o','Color',color_average,'LineWidth',1);
 plot(trap_dist_binned_y, force_binned_y,'.');
 %find the max force
@@ -246,13 +257,13 @@ h_force_x_vs_displacement_corrected = figure;
 plot(d, f_x,'.','Color',color_raw);
 hold on;
 %plot(d, smooth(f_x,5),'.','LineWidth',2,'Color',color_smooth);
-ylabel(['Force (' units_xy ')']);
+ylabel(['Force (pN)']);
 xlabel('Trap separation (nm)');
 title('Force (x) - distance curve');
 axis tight;
 grid on;
 %bin force based on the fixed displacement values and plot that
-[trap_dist_binned_x, force_binned_x, force_error_x] = binned_xy(d,f_x);
+[trap_dist_binned_x, force_binned_x, force_error_x] = binned_xy(d,f_x,false,bin_width);
 errorbar(trap_dist_binned_x, force_binned_x, force_error_x,'o','Color',color_average,'LineWidth',1);
 plot(trap_dist_binned_x, force_binned_x,'.');
 
@@ -263,14 +274,14 @@ h_force_vs_bead_separation_corrected = figure;
 plot(b_d, f,'.','Color',color_raw);
 hold on;
 %plot(d, smooth(f,5),'.','LineWidth',2,'Color',color_smooth);
-ylabel(['Force (' units_xy ')']);
+ylabel(['Force (pN)']);
 xlabel('Bead separation (nm)');
 title('Force-displacement curve');
 axis tight;
 grid on;
 
 %bin force based on the calculated bead separation values and plot that
-[bead_dist_binned, force_binned_b, force_error_b] = binned_xy(b_d,f);
+[bead_dist_binned, force_binned_b, force_error_b] = binned_xy(b_d,f, false,bin_width);
 errorbar(bead_dist_binned, force_binned_b, force_error_b,'o','Color',color_average,'LineWidth',1);
 plot(bead_dist_binned, force_binned_b,'.');
 
@@ -280,12 +291,12 @@ plot(b_d, f_y,'.','Color',color_raw);
 hold on;
 grid on;
 %plot(d, smooth(f_y,5),'.','LineWidth',2,'Color',color_smooth);
-ylabel(['Force (' units_xy ')']);
+ylabel(['Force (pN)']);
 xlabel('Bead separation (nm)');
 title('Force (y)-displacement curve');
 axis tight;
 %bin force based on the fixed displacement values and plot that
-[bead_dist_binned_y, force_binned_y_b, force_error_y_b] = binned_xy(b_d,f_y);
+[bead_dist_binned_y, force_binned_y_b, force_error_y_b] = binned_xy(b_d,f_y,false,bin_width);
 errorbar(bead_dist_binned_y, force_binned_y_b, force_error_y_b,'o','Color',color_average,'LineWidth',1);
 plot(bead_dist_binned_y, force_binned_y_b,'.');
 %find the max force
@@ -305,74 +316,75 @@ h_force_x_vs_bead_separation_corrected = figure;
 plot(b_d, f_x,'.','Color',color_raw);
 hold on;
 %plot(b_d, smooth(f_x,5),'.','LineWidth',2,'Color',color_smooth);
-ylabel(['Force (' units_xy ')']);
+ylabel(['Force (pN)']);
 xlabel('Bead separation (nm)');
 title('Force (x)-displacement curve');
 axis tight;
 grid on;
 %bin force based on the fixed displacement values and plot that
-[bead_dist_binned_x, force_binned_x_b, force_error_x_b] = binned_xy(b_d,f_x);
+[bead_dist_binned_x, force_binned_x_b, force_error_x_b] = binned_xy(b_d,f_x,false,bin_width);
 errorbar(bead_dist_binned_x, force_binned_x_b, force_error_x_b,'o','Color',color_average,'LineWidth',1);
 plot(bead_dist_binned_x, force_binned_x_b,'.');
+
 %% plot forces vs bead separation in brightfield
-
-%plot total force v bead separation
-h_force_vs_bead_separation_corrected_bf = figure;
-plot(b_d_bf, f,'.','Color',color_raw);
-hold on;
-%plot(d, smooth(f,5),'.','LineWidth',2,'Color',color_smooth);
-ylabel(['Force (' units_xy ')']);
-xlabel('Brightfield bead separation (nm)');
-title('Force-displacement curve');
-axis tight;
-grid on;
-
-%bin force based on the calculated bead separation values and plot that
-[bead_dist_binned_bf, force_binned_b_bf, force_error_b_bf] = binned_xy(b_d_bf,f);
-errorbar(bead_dist_binned_bf, force_binned_b_bf, force_error_b_bf,'o','Color',color_average,'LineWidth',1);
-plot(bead_dist_binned_bf, force_binned_b_bf,'.');
-
-%plot y-force vs displacement
-h_force_y_vs_bead_separation_corrected_bf = figure;
-plot(b_d_bf, f_y,'.','Color',color_raw);
-hold on;
-grid on;
-%plot(d, smooth(f_y,5),'.','LineWidth',2,'Color',color_smooth);
-ylabel(['Force (' units_xy ')']);
-xlabel('Brightfield bead separation (nm)');
-title('Force_y-displacement curve');
-axis tight;
-%bin force based on the fixed displacement values and plot that
-[bead_dist_binned_y_bf, force_binned_y_b_bf, force_error_y_b_bf] = binned_xy(b_d_bf,f_y);
-errorbar(bead_dist_binned_y_bf, force_binned_y_b_bf, force_error_y_b_bf,'o','Color',color_average,'LineWidth',1);
-plot(bead_dist_binned_y_bf, force_binned_y_b_bf,'.');
-%find the max force
-%this will give us the force plateau
-[f_max_y_b_bf, i_f_max_y_b_bf] = max(force_binned_y_b_bf);
-d_max_y_b_bf = bead_dist_binned_bf(i_f_max_y_b_bf);
-fprintf(1,'Max force (from !brigtfield! bead separation): %.2f pN\n',f_max_y_b_bf);
-hold on;
-plot(d_max_y_b_bf, f_max_y_b_bf, 'og',...
-    'LineWidth',3,'MarkerSize',10);
-plot(d_min, force_binned_y_b_bf(find(bead_dist_binned_y_bf >= d_min, 1)), 'or',...
-    'LineWidth',3,'MarkerSize',10);
-
-
-%plot x-force vs displacement - this is just for fun
-h_force_x_vs_bead_separation_corrected_bf = figure;
-plot(b_d_bf, f_x,'.','Color',color_raw);
-hold on;
-%plot(b_d, smooth(f_x,5),'.','LineWidth',2,'Color',color_smooth);
-ylabel(['Force (' units_xy ')']);
-xlabel('Brightfield bead separation (nm)');
-title('Force_x-displacement curve');
-axis tight;
-grid on;
-%bin force based on the fixed displacement values and plot that
-[bead_dist_binned_x_bf, force_binned_x_b_bf, force_error_x_b_bf] = binned_xy(b_d_bf,f_x);
-errorbar(bead_dist_binned_x_bf, force_binned_x_b_bf, force_error_x_b_bf,'o','Color',color_average,'LineWidth',1);
-plot(bead_dist_binned_x_bf, force_binned_x_b_bf,'.');
-
+if (brightfield)
+    %plot total force v bead separation
+    h_force_vs_bead_separation_corrected_bf = figure;
+    plot(b_d_bf, f,'.','Color',color_raw);
+    hold on;
+    %plot(d, smooth(f,5),'.','LineWidth',2,'Color',color_smooth);
+    ylabel(['Force (pN)']);
+    xlabel('Brightfield bead separation (nm)');
+    title('Force-displacement curve');
+    axis tight;
+    grid on;
+    
+    %bin force based on the calculated bead separation values and plot that
+    [bead_dist_binned_bf, force_binned_b_bf, force_error_b_bf] = binned_xy(b_d_bf,false,bin_width);
+    errorbar(bead_dist_binned_bf, force_binned_b_bf, force_error_b_bf,'o','Color',color_average,'LineWidth',1);
+    plot(bead_dist_binned_bf, force_binned_b_bf,'.');
+    
+    %plot y-force vs displacement
+    h_force_y_vs_bead_separation_corrected_bf = figure;
+    plot(b_d_bf, f_y,'.','Color',color_raw);
+    hold on;
+    grid on;
+    %plot(d, smooth(f_y,5),'.','LineWidth',2,'Color',color_smooth);
+    ylabel(['Force (pN)']);
+    xlabel('Brightfield bead separation (nm)');
+    title('Force_y-displacement curve');
+    axis tight;
+    %bin force based on the fixed displacement values and plot that
+    [bead_dist_binned_y_bf, force_binned_y_b_bf, force_error_y_b_bf] = binned_xy(b_d_bf,f_y,false,bin_width);
+    errorbar(bead_dist_binned_y_bf, force_binned_y_b_bf, force_error_y_b_bf,'o','Color',color_average,'LineWidth',1);
+    plot(bead_dist_binned_y_bf, force_binned_y_b_bf,'.');
+    %find the max force
+    %this will give us the force plateau
+    [f_max_y_b_bf, i_f_max_y_b_bf] = max(force_binned_y_b_bf);
+    d_max_y_b_bf = bead_dist_binned_bf(i_f_max_y_b_bf);
+    fprintf(1,'Max force (from !brigtfield! bead separation): %.2f pN\n',f_max_y_b_bf);
+    hold on;
+    plot(d_max_y_b_bf, f_max_y_b_bf, 'og',...
+        'LineWidth',3,'MarkerSize',10);
+    plot(d_min, force_binned_y_b_bf(find(bead_dist_binned_y_bf >= d_min, 1)), 'or',...
+        'LineWidth',3,'MarkerSize',10);
+    
+    
+    %plot x-force vs displacement - this is just for fun
+    h_force_x_vs_bead_separation_corrected_bf = figure;
+    plot(b_d_bf, f_x,'.','Color',color_raw);
+    hold on;
+    %plot(b_d, smooth(f_x,5),'.','LineWidth',2,'Color',color_smooth);
+    ylabel(['Force (pN)']);
+    xlabel('Brightfield bead separation (nm)');
+    title('Force_x-displacement curve');
+    axis tight;
+    grid on;
+    %bin force based on the fixed displacement values and plot that
+    [bead_dist_binned_x_bf, force_binned_x_b_bf, force_error_x_b_bf] = binned_xy(b_d_bf,f_x,false,bin_width);
+    errorbar(bead_dist_binned_x_bf, force_binned_x_b_bf, force_error_x_b_bf,'o','Color',color_average,'LineWidth',1);
+    plot(bead_dist_binned_x_bf, force_binned_x_b_bf,'.');
+end;
 %% plot forces vs MT strain
 
 %we now know MT equilibrium length and can re-calculate MT strain
@@ -381,8 +393,7 @@ plot(bead_dist_binned_x_bf, force_binned_x_b_bf,'.');
 mt_strain_bead = (bead_dist_binned - d_min)./d_min;
 %trap distance based strain:
 mt_strain_trap = (trap_dist_binned - d_min)./d_min;
-%strain based on brightfield separation:
-mt_strain_bead_bf = (bead_dist_binned_bf - d_min)./d_min;
+
 
 %Get strain at max force (based on bead separation):
 max_strain_b = (bead_dist_binned(i_f_max_y_b) - d_min) / d_min;
@@ -391,57 +402,98 @@ fprintf(1,'Strain at max force (from bead separation): %.1f%%\n',max_strain_b*10
 max_strain = (trap_dist_binned(i_f_max_y) - d_min) / d_min;
 fprintf(1,'Strain at max force: %.1f%%\n',max_strain*100);
 
-%Get strain at max force (based on bead separation from brightfield):
-max_strain_b_bf = (bead_dist_binned_bf(i_f_max_y_b_bf) - d_min) / d_min;
-fprintf(1,'Strain at max force (from bead separation): %.1f%%\n',max_strain_b_bf*100);
-
 %Get force at given strain +/- strain threshold
-%strain_level = -0.20;
+%based on the calculated bead separation 
 for strain_level = [-0.20 -0.10 -0.05]
     strain_threshold = 0.005; %comparing strains within interval level +/- threshold
     s1 = strain_level + strain_threshold;
     s2 = strain_level - strain_threshold;
     idx_strain = find((mt_strain_bead <= s1)&(mt_strain_bead >= s2));
-    idx_strain_bf = find((mt_strain_bead_bf <= s1)&(mt_strain_bead_bf >= s2));
     force_at_strain = force_binned_b(idx_strain);
-    force_at_strain_bf = force_binned_b_bf(idx_strain_bf);
     strains_level = mt_strain_bead(idx_strain);
-    strains_level_bf = mt_strain_bead_bf(idx_strain_bf);
     fprintf(1,'Force at %4.1f%% strain is %.2f pN (N=%i)\n',...
         mean(strains_level) * 100, mean(force_at_strain), length(idx_strain));
-    fprintf(1,'Brightfield data - Force at %4.1f%% strain is %.2f pN (N=%i)\n',...
-        mean(strains_level_bf) * 100, mean(force_at_strain_bf), length(idx_strain_bf));
 end;
-
-%plot total force v straun
+%plot total force v strain
 h_force_vs_strain = figure;
 
-errorbar(mt_strain_trap, force_binned, force_error,'o','LineWidth',1);
+h_plot = errorbar(mt_strain_trap, force_binned, force_error,'o','LineWidth',1);
+h_plot.Annotation.LegendInformation.IconDisplayStyle = 'off';
 hold on;
-errorbar(mt_strain_bead, force_binned_b, force_error_b,'o','LineWidth',1);
-errorbar(mt_strain_bead_bf, force_binned_b_bf, force_error_b_bf,'o','LineWidth',1);
+h_plot = plot(mt_strain_trap, force_binned, '.-','LineWidth',2);
+
+
+h_plot = errorbar(mt_strain_bead, force_binned_b, force_error_b,'o','LineWidth',1);
+h_plot.Annotation.LegendInformation.IconDisplayStyle = 'off';
+plot(mt_strain_bead, force_binned_b, '.-','LineWidth',1);
+
 plot(max_strain_b, f_max_y_b, 'og',...
     'LineWidth',3,'MarkerSize',10);
 plot(max_strain, f_max_y, 'or',...
     'LineWidth',3,'MarkerSize',10);
-plot(max_strain_b_bf, f_max_y_b_bf, 'ob',...
-    'LineWidth',3,'MarkerSize',10);
+if (brightfield)
+    %strain based on brightfield separation:
+    mt_strain_bead_bf = (bead_dist_binned_bf - d_min)./d_min;
+    %Get strain at max force (based on bead separation from brightfield):
+    max_strain_b_bf = (bead_dist_binned_bf(i_f_max_y_b_bf) - d_min) / d_min;
+    fprintf(1,'Strain at max force (from brightfield): %.1f%%\n',max_strain_b_bf*100);
+    %Get force at given strain +/- strain threshold
+    %based on the brightfield bead separation
+    for strain_level = [-0.20 -0.10 -0.05]
+        strain_threshold = 0.005; %comparing strains within interval level +/- threshold
+        s1 = strain_level + strain_threshold;
+        s2 = strain_level - strain_threshold;
+        idx_strain_bf = find((mt_strain_bead_bf <= s1)&(mt_strain_bead_bf >= s2));
+        force_at_strain_bf = force_binned_b_bf(idx_strain_bf);
+        strains_level_bf = mt_strain_bead_bf(idx_strain_bf);
+        fprintf(1,'Brightfield data - Force at %4.1f%% strain is %.2f pN (N=%i)\n',...
+            mean(strains_level_bf) * 100, mean(force_at_strain_bf), length(idx_strain_bf));
+    end;
+    %add points for brightfiled separation to a force-strain plot
+    figure(h_force_vs_strain);
+    hold on;
+    errorbar(mt_strain_bead_bf, force_binned_b_bf, force_error_b_bf,'o','LineWidth',1);
+    plot(max_strain_b_bf, f_max_y_b_bf, 'ob',...
+        'LineWidth',3,'MarkerSize',10);
+end;
 
-
-ylabel(['Force (' units_xy ')']);
+ylabel(['Force (pN)']);
 xlabel('MT strain (dimensionless)');
 title('Force-strain curve');
 axis tight;
 grid on;
-legend({'Trap separation', 'Bead Separation', 'Brightfield bead separation'});
+legend({'Trap separation','Bead Separation'});
+
+%plot buclking (y-) force vs strain
+h_force_y_vs_strain = figure;
+h_plot = errorbar(mt_strain_trap, force_binned_y, force_error_y,'o','LineWidth',1);
+h_plot.Annotation.LegendInformation.IconDisplayStyle = 'off';
+hold on;
+h_plot = plot(mt_strain_trap, force_binned_y, '.-','LineWidth',2);
+
+h_plot = errorbar(mt_strain_bead, force_binned_y_b, force_error_y_b,'o','LineWidth',1);
+h_plot.Annotation.LegendInformation.IconDisplayStyle = 'off';
+plot(mt_strain_bead, force_binned_y_b, '.-','LineWidth',1);
+plot(max_strain_b, f_max_y_b, 'og',...
+    'LineWidth',3,'MarkerSize',10);
+plot(max_strain, f_max_y, 'or',...
+    'LineWidth',3,'MarkerSize',10);
+ylabel(['Force (pN)']);
+xlabel('MT strain (dimensionless)');
+title('Force_y-strain curve');
+axis tight;
+grid on;
+legend({'Trap separation','Bead Separation'});
 
 %% plot force vs trap separation and bead displacement to compare
 h_force_vs_traps_and_beads = figure;
 plot(trap_dist_binned,force_binned,'.-');
 hold on;
 plot(bead_dist_binned,force_binned_b,'.-');
-plot(bead_dist_binned_bf,force_binned_b_bf,'.-');
-ylabel(['Force (' units_xy ')']);
+if (brightfield)
+    plot(bead_dist_binned_bf,force_binned_b_bf,'.-');
+end;
+ylabel(['Force (pN)']);
 xlabel('Bead separation (nm)');
 title('Force vs bead and trap separation');
 axis tight;
@@ -462,20 +514,20 @@ if (fraying)
     f_fwd_y = [];
     f_fwd_x = [];
     
-    relevant_fwd = [2];
-    relevant_back = [3];
+    relevant_fwd = [4 6 8 10 12 14];
+    relevant_back = [2 5 7 9 11 13 15];
     
     for i=relevant_fwd
         d_fwd = cat(1, d_fwd, distances{i});
         f_fwd = cat(1, f_fwd, forces{i});
-        f_fwd_y = cat(1, f_fwd_y, forces_y{i});
+        f_fwd_y = cat(1, f_fwd_y, -forces_y{i});
         f_fwd_x = cat(1, f_fwd_x, forces_x{i});
     end;
     
     for i=relevant_back
         d_back = cat(1, d_back, distances{i});
         f_back = cat(1, f_back, forces{i});
-        f_back_y = cat(1, f_back_y, forces_y{i});
+        f_back_y = cat(1, f_back_y, -forces_y{i});
         f_back_x = cat(1, f_back_x, forces_x{i});
     end;
     
@@ -488,12 +540,12 @@ if (fraying)
     plot(d, f,'.','Color',color_raw);
     hold on;
     plot(d, smooth(f,5),'.','LineWidth',2,'Color',color_smooth);
-    ylabel(['Force (' units_xy ')']);
+    ylabel(['Force (pN)']);
     xlabel('Trap separation (nm)');
     title('Forward runs: Force - distance curve');
     axis tight;
     %bin force based on the fixed displacement values and plot that
-    [trap_dist_binned, force_binned, force_error] = binned_xy(d,f);
+    [trap_dist_binned, force_binned, force_error] = binned_xy(d,f,false,bin_width);
     errorbar(trap_dist_binned, force_binned, force_error,'o','Color',color_average,'LineWidth',1);
     plot(trap_dist_binned, force_binned,'.');
     
@@ -503,12 +555,12 @@ if (fraying)
     hold on;
     grid on;
     plot(d, smooth(f_y,5),'.','LineWidth',2,'Color',color_smooth);
-    ylabel(['Force (' units_xy ')']);
+    ylabel(['Force (pN)']);
     xlabel('Trap separation (nm)');
     title('Forward runs: Force (y) - distance curve');
     axis tight;
     %bin force based on the fixed displacement values and plot that
-    [trap_dist_binned_y, force_binned_y, force_error_y] = binned_xy(d,f_y);
+    [trap_dist_binned_y, force_binned_y, force_error_y] = binned_xy(d,f_y,false, bin_width);
     errorbar(trap_dist_binned_y, force_binned_y, force_error_y,'o','Color',color_average,'LineWidth',1);
     plot(trap_dist_binned_y, force_binned_y,'.');
     
@@ -527,13 +579,13 @@ if (fraying)
     plot(d, f,'.','Color',color_raw);
     hold on;
     plot(d, smooth(f,5),'.','LineWidth',2,'Color',color_smooth);
-    ylabel(['Force (' units_xy ')']);
+    ylabel(['Force (pN)']);
     xlabel('Trap separation (nm)');
     title('Back runs: Force - distance curve');
     axis tight;
     
     %bin force based on the fixed displacement values and plot that
-    [trap_dist_binned, force_binned, force_error] = binned_xy(d,f);
+    [trap_dist_binned, force_binned, force_error] = binned_xy(d,f,false, bin_width);
     errorbar(trap_dist_binned, force_binned, force_error,'o','Color',color_average,'LineWidth',1);
     plot(trap_dist_binned, force_binned,'.');
     
@@ -543,12 +595,12 @@ if (fraying)
     hold on;
     grid on;
     plot(d, smooth(f_y,5),'.','LineWidth',2,'Color',color_smooth);
-    ylabel(['Force (' units_xy ')']);
+    ylabel(['Force (pN)']);
     xlabel('Trap separation (nm)');
     title('Back runs: Force (y) - distance curve');
     axis tight;
     %bin force based on the fixed displacement values and plot that
-    [trap_dist_binned_y, force_binned_y, force_error_y] = binned_xy(d,f_y);
+    [trap_dist_binned_y, force_binned_y, force_error_y] = binned_xy(d,f_y,false,bin_width);
     errorbar(trap_dist_binned_y, force_binned_y, force_error_y,'o','Color',color_average,'LineWidth',1);
     plot(trap_dist_binned_y, force_binned_y,'.');
     
@@ -564,7 +616,7 @@ if (fraying)
     errorbar(d_fwd_binned, f_fwd_binned, e_fwd_binned,'.-');
     hold on;
     errorbar(d_back_binned, f_back_binned, e_back_binned,'.-');
-    ylabel(['Force (' units_xy ')']);
+    ylabel(['Force (pN)']);
     xlabel('Trap separation (nm)');
     title('Total force - spearation');
     axis tight;
@@ -575,7 +627,7 @@ if (fraying)
     errorbar(d_fwd_binned, f_fwd_binned_y, e_fwd_binned_y,'.-');
     hold on;
     errorbar(d_back_binned, f_back_binned_y, e_back_binned_y,'.-');
-    ylabel(['Force (' units_xy ')']);
+    ylabel(['Force (pN)']);
     xlabel('Trap separation (nm)');
     title('Force (y) - spearation curves: back and forth');
     axis tight;
@@ -637,7 +689,7 @@ save([filepath 'binned forces.mat'],...
     'bead_dist_binned_y', 'force_binned_y_b', 'force_error_y_b',...
     'bead_dist_binned_x', 'force_binned_x_b', 'force_error_x_b',...
     'mt_strain_bead', 'mt_strain_trap');
-disp('Done saving');
+
 
 %save force-y vs trap displacement
 f_filename = [filepath 'force_y vs trap separation'];
@@ -665,13 +717,22 @@ prettify_plot(fig_ref);
 savefig(fig_ref,f_filename);
 saveas(fig_ref, f_filename,'jpeg');
 
-
 %save force vs mt strain
 f_filename = [filepath 'force_total vs strain'];
 fig_ref = h_force_vs_strain;
 prettify_plot(fig_ref);
 savefig(fig_ref,f_filename);
 saveas(fig_ref, f_filename,'jpeg');
+
+%save force_y vs mt strain
+f_filename = [filepath 'force_y vs strain'];
+fig_ref = h_force_y_vs_strain;
+prettify_plot(fig_ref);
+savefig(fig_ref,f_filename);
+saveas(fig_ref, f_filename,'jpeg');
+
+
+disp('Done saving');
 
 %% open cftool findow
 cftool(trap_dist_binned_y, force_binned_y);

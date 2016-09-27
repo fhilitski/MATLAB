@@ -47,7 +47,7 @@ f2 = fliplr(f1.*(-1));
 f = [f2 f1];
 
 %find first index after f = 0;
-f0 = find(f >= 0);
+f0 = find(f >= 0); %this looks like a bug since f=0 points are actually included
 f0 = f0(1);
 %freq and powerspectrum reperesent one-sided power spectrum (positive frequencies)
 freq = f(f0:end);

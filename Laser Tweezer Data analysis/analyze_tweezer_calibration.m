@@ -1,4 +1,4 @@
-function [corner_freq_x, corner_freq_y, D_x, D_y] = analyze_tweezer_calibration (folder_name, file_name, number_of_splits, min_average_points, high_freq_cutoff, low_freq_cutoff)
+function [corner_freq_x, corner_freq_y, D_x, D_y] = analyze_tweezer_calibration (folder_name, file_name, number_of_splits, min_average_points, high_freq_cutoff, low_freq_cutoff, save_mat_file)
 
 if nargin < 3
     number_of_splits = 1;
@@ -18,10 +18,20 @@ end;
 if nargin < 6
     low_freq_cutoff = 0;
 end;
+if nargin < 7
+    save_mat_file = false;
+end;
 
 fname = [folder_name file_name];
 
 [rate, d, g, z, Vx,Vy, Nx, Ny] = read_calibration_data(fname);
+if save_mat_file
+    %save raw variables returned by read_calibration_data 
+    %into the mat file
+    mat_fname = [fname '.mat'];
+    save(mat_fname, 'rate','d','g','z','Vx','Vy','Nx','Ny');
+    disp(['Calibration data save in ' mat_fname]);
+end;
 
 %plot_voltages
 h_fig_vx = figure;
