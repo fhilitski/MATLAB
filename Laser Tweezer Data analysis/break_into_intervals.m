@@ -160,7 +160,7 @@ xlabel('Bead separation (nm)');
 title('Force - distance curve');
 axis tight;
 
-  %% analysis of the relevant force-displacement intervals
+%% analysis of the relevant force-displacement intervals
 %define color for raw data
 color_raw = [0.831  0.816    0.784];
 %define color for smoothed data
@@ -207,16 +207,22 @@ grid on;
 
 %bin force based on the fixed displacement values and plot that
 [trap_dist_binned, force_binned, force_error] = binned_xy(d,f,false,bin_width);
-errorbar(trap_dist_binned, force_binned, force_error,'o','Color',color_average,'LineWidth',1);
+errorbar(trap_dist_binned, force_binned, force_error,'o','Color',...
+    color_average,'LineWidth',1);
 plot(trap_dist_binned, force_binned,'.');
 
 %find the separation that corresponds to min. force - that's the
 %equilibrium separation
+%this is automated process, but it might noy always be ideal 
+%if there are large force fluctuations, it might be useful to manually
+%specify the d_min
 [f_min, i_f_min] = min(force_binned);
 d_min = trap_dist_binned(i_f_min);
+%d_min = 10500;
 fprintf(1,'Equilibrium trap separation: %.0f nm\n',d_min);
 hold on;
 plot(d_min, f_min, 'or','LineWidth',3,'MarkerSize',10);
+
 
 %max force - this is not very useful in case of total force,
 %as the max force is usually reached during the extension phase
@@ -248,7 +254,7 @@ plot(trap_dist_binned_y, force_binned_y,'.');
 d_max_y = trap_dist_binned(i_f_max_y);
 fprintf(1,'Max force: %.2f pN\n',f_max_y);
 hold on;
-plot(d_max_y, f_max_y, 'og');
+plot(d_max_y, f_max_y, 'og','LineWidth',3,'MarkerSize',10);
 plot(d_min, force_binned_y(find(trap_dist_binned_y == d_min)), 'or',...
     'LineWidth',3,'MarkerSize',10);
 
@@ -300,13 +306,17 @@ axis tight;
 errorbar(bead_dist_binned_y, force_binned_y_b, force_error_y_b,'o','Color',color_average,'LineWidth',1);
 plot(bead_dist_binned_y, force_binned_y_b,'.');
 %find the max force
-%this will give us the force plateau
+%this will give us the force peak, or plateau - if it exist
+%this is also prone to inaccuracies due to large fluctuations
 [f_max_y_b, i_f_max_y_b] = max(force_binned_y_b);
 d_max_y_b = bead_dist_binned(i_f_max_y_b);
 fprintf(1,'Max force (from bead separation): %.2f pN\n',f_max_y_b);
 hold on;
 plot(d_max_y_b, f_max_y_b, 'og',...
     'LineWidth',3,'MarkerSize',10);
+%indicate the quilibrium distance on the plot. 
+%this is based on the d_min previously determined from the trap separation
+%at equilibrium, trap d and bead distance are identical
 plot(d_min, force_binned_y_b(find(bead_dist_binned_y >= d_min, 1)), 'or',...
     'LineWidth',3,'MarkerSize',10);
 
