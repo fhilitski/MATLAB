@@ -82,7 +82,7 @@ for i = 1:n_intervals
     intervals{i} = d_start:1:d_end;
     distances{i} = trap_dist_fd_curve(intervals{i});
     forces{i} = total_force_fd_curve(intervals{i});
-    forces_y{i} = force_y_fd_curve(intervals{i});
+    forces_y{i} = -force_y_fd_curve(intervals{i});
     forces_x{i} = force_x_fd_curve(intervals{i});
     bead_distances{i} = bead_dist_fd_curve(intervals{i});
     bead_distances_bf{i} = bead_dist_fd_curve_bf(intervals{i});
@@ -131,7 +131,7 @@ for i = 1: n_intervals
 end;
 hold off;
 pause off;
-ylabel(['Force (pN)']);
+ylabel(['Force (p N)']); 
 xlabel('Trap separation (nm)');
 title('Force-distance curve');
 axis tight
