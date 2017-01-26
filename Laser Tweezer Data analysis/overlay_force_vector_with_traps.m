@@ -153,29 +153,38 @@ end;
 radius = radius_pix;
 %trap radius in pixels;
 
-for theta = 0:0.1:2*pi
+for theta = 0:0.01:2*pi
     x_circle = round(point_x + trap1(1) + radius*cos(theta));
     y_circle = round(point_y + trap1(2) + radius*sin(theta));
+    
     vector_img(y_circle, x_circle,:) = max_allowed_intensity;
+    vector_img(y_circle, x_circle+1,:) = max_allowed_intensity;
+    vector_img(y_circle+1, x_circle,:) = max_allowed_intensity;
+    vector_img(y_circle-1, x_circle,:) = max_allowed_intensity;
+    vector_img(y_circle, x_circle-1,:) = max_allowed_intensity;
     
     x_circle = round(point_x + trap2(1) + radius*cos(theta));
     y_circle = round(point_y + trap2(2) + radius*sin(theta));
     %traps can be located outside the image (or the selected ROI)
     %make sure these coordinates are handled properly
     if (x_circle <= 0)
-        x_circle = 1;
+        x_circle = 1+1;
     end;
     if (x_circle >= n)
-        x_circle = n;
+        x_circle = n-1;
     end;
     if (y_circle <= 0)
-        y_circle = 1;
+        y_circle = 1+1;
     end;
     
     if (y_circle >= m)
-        y_circle = m;
+        y_circle = m-1;
     end;
     vector_img(y_circle, x_circle,:) = max_allowed_intensity;
+    vector_img(y_circle, x_circle+1,:) = max_allowed_intensity;
+    vector_img(y_circle+1, x_circle,:) = max_allowed_intensity;
+    vector_img(y_circle-1, x_circle,:) = max_allowed_intensity;
+    vector_img(y_circle, x_circle-1,:) = max_allowed_intensity;
 end;
 
 merged_img = imfuse(vector_img,fluor_image, 'ColorChannels',[1,2,0]);

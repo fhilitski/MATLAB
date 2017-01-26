@@ -30,7 +30,7 @@ if save_mat_file
     %into the mat file
     mat_fname = [fname '.mat'];
     save(mat_fname, 'rate','d','g','z','Vx','Vy','Nx','Ny');
-    disp(['Calibration data save in ' mat_fname]);
+    disp(['Calibration data saved in ' mat_fname]);
 end;
 
 %plot_voltages

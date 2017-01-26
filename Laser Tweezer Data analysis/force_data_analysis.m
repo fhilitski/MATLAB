@@ -4,13 +4,13 @@ clear all;
 close all;
 
 %% Set-up file path and names
-path ='D:\Data - MT Sliding and Friction\2016\09-20-2016\';
-findcenter_path = 'findcenter 1\';
+path ='D:\Data - MT Sliding and Friction\2017\01-25-2017\';
+findcenter_path = 'findcenter 2\';
 findcenter_path = [path findcenter_path];
 findcenter_scan = 3;
-data_path = 'force 2\';
+data_path = 'force 1\';
 acquisition_fname = 'acquisition.csv';
-cal_fname = ['cal 1 trap 0.79W' '.dat'];
+cal_fname = ['cal 1 trap' '.dat'];
 
 number_of_traps_calibration = 1;
 %calibratedpath stiffness is divided by the number of traps in a run
@@ -32,6 +32,7 @@ number_of_zero_force_points = 100;
 % location of zero-force points
 % accepted values are 'start', 'end' and 'custom'
 zero_force_location = 'custom';
+
 %sero force can also be specified as an interval
 %this is only relevant if location is 'custom'
 %otherwise, variable number_of_zero_force_points will determine the
@@ -40,8 +41,8 @@ zero_force_location = 'custom';
 
 analyze_subset = false;
 %indicate subset indexes here
-subset_start = 1;
-subset_end = 5500;
+subset_start = 2000;
+subset_end = 2400;
 
 overlay_scale = 20; %pre-define overlay scale; it will be calculated later
 
@@ -96,19 +97,18 @@ filename = [path data_path data_fname];
 if acq_file_found
     
     [trap_x1, trap_y1, pos_x, pos_y, t, z, trap_x2,trap_y2] = read_cv_data_twotraps(filename);
-    %uncomment this for compatibility with old data format
-    %[trap_x1, trap_y1, pos_x, pos_y, t, z] = read_cv_data(filename);
+    if (isempty(trap_x1))
+        disp('Trap positions not found! Attempting to read single trap (legacy) format...');
+        %uncomment this for compatibility with old data format
+        [trap_x1, trap_y1, pos_x, pos_y, t, z] = read_cv_data(filename);
+        if ~isempty(trap_x1)
+            disp('Got legacy data - single trap recorded');
+        end;
+    end;
     
     %get the total length of the data
     total_data_length = length(trap_x1);
-    %if we need to analyze the whole run, define start and end points as such:
-    if (~analyze_subset)
-        subset_start = 1;
-        subset_end = total_data_length;
-        disp('Analyzing the entire run');
-    end;
-    subset = subset_start:1:subset_end;
-    
+        
     fprintf('Analyzing frames: %i to %i\n',subset_start, subset_end);
     %Display information about the run
     if (~converted)
@@ -192,9 +192,9 @@ end;
 
 %% analyze calibration file
 if (analyze_calibration)
-    min_points_to_average = 20; %parameter for analyze_tweezer_calibration
+    min_points_to_average = 10; %parameter for analyze_tweezer_calibration
     high_frequency_cutoff = 10000; %parameter for analyze_tweezer_calibration
-    low_frequency_cutoff = 50;
+    low_frequency_cutoff = 20;
     cal_averages = 2^5;
     [fc_x,fc_y, diff_x, diff_y] =...
         analyze_tweezer_calibration(findcenter_path, cal_fname, cal_averages,...
@@ -249,11 +249,13 @@ end;
 %% plot trap positions
 %Define some necessary constants for future use:
 %parameter for plotting smoothed force vs time/frame
-force_smoothing = 5;
+force_smoothing = 8;
 %define color for raw data
 color_raw = [0.831  0.816    0.784];
+color_raw = [46/255  172/255   255/255];
 %define color for smoothed data
 color_smooth = [ 0.502  0.502   0.502];
+color_smooth = [0  114/255  189/255];
 %define color for block-averaged data
 color_average = [0  0.447   0.741];
 % define units for plotting
@@ -264,10 +266,21 @@ time_s = t*10^-3;
 %determine if trap positions were recorded
 %by default, both trap positions are recorded
 traps_recorded = true;
-if (numel(trap_y1) == 0) || (numel(trap_y2) == 0) || (numel(trap_x1) == 0)
+if ( (numel(trap_y1)==0) || (numel(trap_y2)==0))
     traps_recorded = false;
     warning('Two traps positions were not recorded!');
+    if (numel(trap_x1) ~= 0)
+        disp('Only sinlge trap recorded');
+    end;
 end;
+
+%if we need to analyze the whole run, define start and end points as such:
+if (~analyze_subset)
+    subset_start = 1;
+    subset_end = total_data_length;
+    disp('Analyzing the entire run');
+end;
+subset = subset_start:1:subset_end;
 
 if (traps_recorded)
     %convert trap positions from MHz to nm or pixels
@@ -286,13 +299,18 @@ if (traps_recorded)
     %convert nm to pixels
     %this will be used when working with graphic overlays
     maginification = 1;
-    switch objective
-        case '100x'
-            magnification = 100;
-        case '60x'
-            magnification = 60;
-        otherwise
-            disp('Wrong objective information! Pixel size caluclation is incorrect!');
+    if exist('objective', 'var')
+        switch objective
+            case '100x'
+                magnification = 100;
+            case '60x'
+                magnification = 60;
+            otherwise
+                disp('Wrong objective information! Pixel size caluclation is incorrect!');
+        end;
+    else
+        objective = '100x';
+        magnification = 100;
     end;
     camera_pixel_size = 13000/magnification; %nm/pixels for Andor IKon-M on the AOD
     trap_y1_pix = trap_y1_nm/camera_pixel_size;
@@ -332,13 +350,13 @@ if (traps_recorded)
         alpha = 90 - trap_line_angle_deg(i);
         trap_line_rotation(:,:,i) = [cosd(alpha), -sind(alpha);...
             sind(alpha),  cosd(alpha)];
-              %trap coordinates in the new coordinate system
-    %         rotated_trap_1 = trap_line_rotation(:,:,i) * [trap_x1_nm(i); trap_y1_nm(i)];
-    %         rotated_trap_2 = trap_line_rotation(:,:,i) * [trap_x2_nm(i); trap_y2_nm(i)];
-    %         trap_x1_nm_r(i) = rotated_trap_1(1);
-    %         trap_y1_nm_r(i) = rotated_trap_1(2);
-    %         trap_x2_nm_r(i) = rotated_trap_2(1);
-    %         trap_y2_nm_r(i) = rotated_trap_2(2);
+        %trap coordinates in the new coordinate system
+        %         rotated_trap_1 = trap_line_rotation(:,:,i) * [trap_x1_nm(i); trap_y1_nm(i)];
+        %         rotated_trap_2 = trap_line_rotation(:,:,i) * [trap_x2_nm(i); trap_y2_nm(i)];
+        %         trap_x1_nm_r(i) = rotated_trap_1(1);
+        %         trap_y1_nm_r(i) = rotated_trap_1(2);
+        %         trap_x2_nm_r(i) = rotated_trap_2(1);
+        %         trap_y2_nm_r(i) = rotated_trap_2(2);
     end;
     
     %all the same quantities in the rotated coordinate frame as consistency
@@ -400,10 +418,12 @@ if (traps_recorded)
         axis tight;
         
         if ~exist('zero_force_points','var')
-        %check if zero_force_points variable exists
-        %if it does, it has been pre-defined previously
-        %otherwise, define it based on zero_force_location
-        
+            %check if zero_force_points variable exists
+            %if it does, it has been pre-defined previously
+            %otherwise, define it based on zero_force_location
+            if ~exist('zero_force_location','var')
+                zero_force_location = 'custom'
+            end;
             switch zero_force_location
                 case 'end'
                     %zero force points are in the end of the subset
@@ -450,10 +470,10 @@ if (traps_recorded)
             %if zero_froce_points already exist
             %highlight them on the trap separation plot
             %this is added for backward compatibility with previous
-            %revisions of the code 
+            %revisions of the code
             %and to enable seamlessly readin the saved runs
             hold on;
-            zero_force_points = zero_force_interval;
+            %zero_force_points = zero_force_interval;
             x1_index = zero_force_points(1) - subset_start + 1;
             x2_index = zero_force_points(end) - subset_start + 1;
             plot(subset(x1_index:x2_index),trap_dist_subset(x1_index:x2_index),'-','LineWidth',3);
@@ -484,16 +504,61 @@ if (traps_recorded)
     else
         disp('Trap positions not recorded');
     end;
-end;
+    legacy_format = 0;
+    
+else
+    legacy_format = 1;
+    %if 2 traps not recorded
+    %we still need to get 0-force points
+    %we now do it manually:
+    if ~exist('zero_force_points','var')
+        %check if zero_force_points variable exists
+        %if it does, it has been pre-defined previously
+        %otherwise, define it based on zero_force_location
+        switch zero_force_location
+            case 'end'
+                %zero force points are in the end of the subset
+                zero_force_points = subset_end-number_of_zero_force_points:1:subset_end;
+                disp('Zero force is in the end of the subset');
+            case 'start'
+                %zero force points are in the beginning of the subset
+                zero_force_points = subset_start:1:subset_start + number_of_zero_force_points-1;
+                disp('Zero force is in the start of the subset');
+            case 'custom'
+                disp('Please specify zero-force frames.');
+                x1_index = input('start frame (x1): ');
+                x2_index = input('end frame (x2): ');
+                zero_force_interval = x1_index:1:x2_index;
+                zero_force_points = zero_force_interval;
+                fprintf('Zero force frames: %i : %i\n',x1_index,x2_index);
+            otherwise
+                warning('Unrecognized value for zero_force_location parameter!');
+                %zero_force_points = 1;
+        end;
+    end;
+    %also define trap_line rotation matrix for compatibility with code
+    %below
+    %set angle to 0 so there is no actual roatation
+    for i = 1:1:length(trap_x1)
+        alpha = 0;
+        trap_line_rotation(:,:,i) = [cosd(alpha), -sind(alpha);...
+            sind(alpha),  cosd(alpha)];
+    end;
+    
+end; %if traps_recorded
 
 %% plot x and y bead positions in the detection beam
 % if conversion used, the position is in nm,
 % otherwise it is in volts;
+if exist('Converted','var')
+    converted = Converted;
+    clear Converted;
+end;
 if (converted)
     %revert back the conversion, i.e. go back to volts
     pos_x = pos_x ./ QPDx_acq;
     pos_y = pos_y ./ QPDy_acq;
-    disp('conv  ersion reverted...');
+    disp('conversion reverted...');
     %conversion is now reverted, set the flage to 0
     converted = 0;
 end;
@@ -502,6 +567,10 @@ end;
 %V into pos_x in nm:
 % x_nm = f(x_V) and y_nm = f(y_V)
 %and then into force through trap_stiffness k
+if ~exist('use_linear_QPD_map','var')
+    use_linear_QPD_map = true;
+end;
+
 if use_linear_QPD_map
     %the simplest possible mapping is linear:
     pos_x_nm = pos_x.*QPDx;
@@ -527,15 +596,24 @@ pos_y_nm_corrected = pos_y_nm - pos_y_nm_0;
 force_x = pos_x_nm_corrected.*k_x/(number_of_traps_run/number_of_traps_calibration);
 force_y = pos_y_nm_corrected.*k_y/(number_of_traps_run/number_of_traps_calibration);
 
+%zero time for the subset
+time_s_0 = time_s(subset_start);
+time_subset_s = time_s - time_s_0;
+t_s = time_subset_s(subset);
+
 % f_x_0 = mean(force_x(zero_force_points));
 % f_y_0 = mean(force_y(zero_force_points));
 % force_x = force_x - f_x_0;
 % force_y = force_y - f_y_0;
 
 total_force = sqrt(force_x.^2 + force_y.^2);
-theta = atan2d(force_y,force_x);
+theta = atan2d(force_x,force_y);
 
-%calculate forces in the rotated frame (bundle frame of reference)
+%Calculate forces in the rotated frame, the bundle frame
+%The bundle frame of reference has an origin at the detection trap,
+%the y-axis connects the origin with the manipulation trap,
+%the x-axis is perendicular
+%NOTE: all variables with subscript r are in the rotated reference frame
 %first, initialize variables for forces x and y in the rotated frame
 force_x_r = force_x;
 force_y_r = force_y;
@@ -547,90 +625,35 @@ for i = 1:1:length(force_x)
 end;
 %calculated distance and angle in the rotated frame
 total_force_r = sqrt(force_x_r.^2 + force_y_r.^2);
-theta_r = atan2d(force_y_r,force_x_r);
+theta_r = atan2d(force_x_r,force_y_r);
 
-%calculate bead-to-bead distance
-%This calculation is based on the assumption that displacement of both
-%beads is the same (which is true if trap stiffness is the same for traps
-%1&2)
-trap_separation_x = trap_x2_nm - trap_x1_nm;
-bead_separation_x = trap_separation_x - pos_x_nm_corrected.*2;
-trap_separation_y = trap_y2_nm - trap_y1_nm;
-bead_separation_y = trap_separation_y - pos_y_nm_corrected.*2;
-bead_dist = sqrt(bead_separation_x.^2 + bead_separation_y.^2);
-%rotate bead distance to the new, rotated frame of reference
-%(note - it should not change as rotation preserves distances)
-%this is ony for the consistence check;
-for i = 1:1:length(bead_separation_x)
-    a = trap_line_rotation(:,:,i)*[bead_separation_x(i); bead_separation_y(i)];
-    bead_separation_x_r(i) = a(1);
-    bead_separation_y_r(i) = a(2);
+if traps_recorded
+    %calculate bead-to-bead distance
+    %This calculation is based on the assumption that displacement of both
+    %beads is the same (which is true if trap stiffness is the same for traps
+    %1&2)
+    trap_separation_x = trap_x2_nm - trap_x1_nm;
+    bead_separation_x = trap_separation_x - pos_x_nm_corrected.*2;
+    trap_separation_y = trap_y2_nm - trap_y1_nm;
+    bead_separation_y = trap_separation_y - pos_y_nm_corrected.*2;
+    bead_dist = sqrt(bead_separation_x.^2 + bead_separation_y.^2);
+    %rotate bead distance to the new, rotated frame of reference
+    %(note - it should not change as rotation preserves distances)
+    %this is ony for the consistency check
+    for i = 1:1:length(bead_separation_x)
+        a = trap_line_rotation(:,:,i)*[bead_separation_x(i); bead_separation_y(i)];
+        bead_separation_x_r(i) = a(1);
+        bead_separation_y_r(i) = a(2);
+    end;
+    bead_dist_r = sqrt(bead_separation_x_r.^2 + bead_separation_y_r.^2);
+    
+    %plot calculated bead distance on the same figure as trap distance
+    figure(h_fig_trap_dist);
+    bead_dist_subset = bead_dist(subset);
+    hold on;
+    plot(subset, bead_dist_subset);
+    legend('Distance x', 'Distance y', 'Distance total','O force interval','Calulated bead separation');
 end;
-bead_dist_r = sqrt(bead_separation_x_r.^2 + bead_separation_y_r.^2);
-
-%plot calculated bead distance on the same figure as trap distance
-figure(h_fig_trap_dist);
-bead_dist_subset = bead_dist(subset);
-hold on;
-plot(subset, bead_dist_subset);
-legend('Distance x', 'Distance y', 'Distance total','O force interval','Calulated bead separation');
-
-
-
-%plot F_x vs time
-% h_fig_x = figure;
-% plot(time_s(subset), force_x(subset), '.-');
-% ylabel(['Force (' units_xy ')']);
-% xlabel('Time (s)');
-% title('Measured force in x-direction');
-% axis tight;
-
-%plot F_x versus frame #
-% h_fig_x_frames = figure;
-% plot(force_x(subset), '.-');
-% ylabel(['Force (' units_xy ')']);
-% xlabel('Frame #');
-% title('Measured force in x-direction');
-% axis tight;
-
-%plot F_y vs time
-% h_fig_y = figure;
-% plot(time_s(subset),force_y(subset),'.-');
-% ylabel(['Force (' units_xy ')']);
-% xlabel('Time (s)');
-% title('Measured force in y-direction');
-% axis tight;
-
-%plot F_y versus frame #
-% h_fig_y_frames = figure;
-% plot(force_y(subset),'.-');
-% ylabel(['Force (' units_xy ')']);
-% xlabel('Frame #');
-% title('Measured force in y-direction');
-% axis tight;
-
-%plot z versus time
-% h_fig_z = figure;
-% plot(time_s(subset),z(subset),'.-');
-% ylabel('Z-position, \mum');
-% xlabel('Time (s)');
-% axis tight;
-% h_fig_z_frames = figure;
-% plot(z(subset),'.-');
-% ylabel('Z-position, \mum');
-% xlabel('Frame #');
-% axis tight;
-
-%plot F_x, F_y and z vs time in the same plot using independent y-axes
-%commented out on 06/07/2016 as unnecessary plot
-% h_fig_all = figure;
-% [h_axes, h_plot_f, h_plot_z] = plotyy([time_s(subset),time_s(subset)],...
-%     [force_x(subset),force_y(subset)],time_s(subset), z(subset));
-% ylabel(h_axes(2), 'Z-position (\mum)');
-% ylabel(h_axes(1), 'Force (pN)');
-% xlabel('Time (s)');
-% title('X-force, Y-force and z-position together');
-% %axis tight;
 
 %plot F_x, F_y and z vs frame index in the same plot using independent y-axes
 h_fig_all_frames = figure;
@@ -642,40 +665,86 @@ ylabel(h_axes(1), 'Force (pN)');
 xlabel('Frame #');
 title('X-force, Y-force and z-position together');
 legend('F_x','F_y','z');
-axis tight;
+%axis tight;
 
-%plot forces after rotation into the filament frame
-subplot(2,1,2);
-[h_axes, h_plot_f, h_plot_z] = plotyy([subset',subset'],...
-    [force_x_r(subset),force_y_r(subset)],subset, z(subset));
-ylabel(h_axes(2), 'Z-position (\mum)');
-ylabel(h_axes(1), 'Force (pN)');
-xlabel('Frame #');
-title('X-force, Y-force and z-position ROTATED');
-legend('F_x','F_y','z');
-axis tight;
+if ~legacy_format
+     %if not legacy format
+    %plot forces after rotation into the filament frame
+    subplot(2,1,2);
+    [h_axes, h_plot_f, h_plot_z] = plotyy([subset',subset'],...
+        [force_x_r(subset),force_y_r(subset)],subset, z(subset));
+    ylabel(h_axes(2), 'Z-position (\mum)');
+    ylabel(h_axes(1), 'Force (pN)');
+    xlabel('Frame #');
+    title('X-force, Y-force and z-position ROTATED');
+    legend('F_x','F_y','z');
+    %axis tight;
+    
+else
+    %if legaccy format is used
+    %plot same variables v time
+    subplot (2,1,2)
+    [h_axes, h_plot_f, h_plot_z] = plotyy([t_s,t_s],...
+    [force_x(subset),force_y(subset)],t_s, z(subset));
+    ylabel(h_axes(2), 'Z-position (\mum)');
+    ylabel(h_axes(1), 'Force (pN)');
+    xlabel('Time (s)');
+    title('X-force, Y-force and z-position together');
+    legend('F_x','F_y','z');
+    %axis tight;
+    
+%     %plot F_x vs time
+%     h_fig_x = figure;
+%     plot(t_s, force_x(subset), '.-');
+%     ylabel(['Force (' units_xy ')']);
+%     xlabel('Time (s)');
+%     title('Measured force in x-direction');
+%     axis tight;
+%     
+%     %plot F_x versus frame #
+%     h_fig_x_frames = figure;
+%     plot(force_x(subset), '.-');
+%     ylabel(['Force (' units_xy ')']);
+%     xlabel('Frame #');
+%     title('Measured force in x-direction');
+%     axis tight;
+%     
+%     %plot F_y vs time
+%     h_fig_y = figure;
+%     plot(t_s,force_y(subset),'.-');
+%     ylabel(['Force (' units_xy ')']);
+%     xlabel('Time (s)');
+%     title('Measured force in y-direction');
+%     axis tight;
+%     
+%     %plot F_y versus frame #
+%     h_fig_y_frames = figure;
+%     plot(force_y(subset),'.-');
+%     ylabel(['Force (' units_xy ')']);
+%     xlabel('Frame #');
+%     title('Measured force in y-direction');
+%     axis tight;
+%     
+%     %plot z versus time
+%     h_fig_z = figure;
+%     plot(t_s,z(subset),'.-');
+%     ylabel('Z-position, \mum');
+%     xlabel('Time (s)');
+%     axis tight;
+%     h_fig_z_frames = figure;
+%     plot(z(subset),'.-');
+%     ylabel('Z-position, \mum');
+%     xlabel('Frame #');
+%     axis tight;
+end;
 
-%% plot total force vs time
-
-%plot total F vs time
-%commented as deemed not essential
-%
-% h_force = figure;
-% plot(time_s(subset),total_force(subset),'.','Color',color_raw);
-% hold on;
-% plot(time_s(subset),smooth(total_force(subset),force_smoothing),'-','LineWidth',2,'Color',color_smooth);
-% ylabel(['Force (' units_xy ')']);
-% xlabel('Time (s)');
-% title('Total measured force');
-% axis tight;
-%
-
-%plot total force vs frame
+%% plot total force vs time and frame index
 h_force_frames = figure;
 subplot(2,1,1);
 plot(total_force(subset),'.','Color',color_raw);
 hold on;
-plot(smooth(total_force(subset),force_smoothing),'-','LineWidth',2,'Color',color_smooth);
+plot(smooth(total_force(subset),force_smoothing),...
+    '-','LineWidth',2,'Color',color_smooth);
 ylabel(['Force (' units_xy ')']);
 xlabel('Substack frame #');
 title('Total measured force');
@@ -683,13 +752,26 @@ axis tight;
 
 %plot total force vs frame in the rotated frame of reference
 subplot(2,1,2);
-plot(total_force_r(subset),'.','Color',color_raw);
 hold on;
-plot(smooth(total_force_r(subset),force_smoothing),'-','LineWidth',2,'Color',color_smooth);
-ylabel(['Force (' units_xy ')']);
-xlabel('Substack frame #');
-title('Total measured force ROTATED');
-axis tight;
+plot_force_v_time_anyway = true;
+if ~(legacy_format || plot_force_v_time_anyway)
+    %plot in the rotated frame
+    plot(total_force_r(subset),'.','Color',color_raw);
+    plot(smooth(total_force_r(subset),force_smoothing),...
+        '-','LineWidth',2,'Color',color_smooth);
+    xlabel('Substack frame #');
+    title('Total measured force ROTATED');
+    ylabel(['Force (' units_xy ')']);
+    axis tight;
+else
+    %plot force v time
+    plot(t_s,total_force(subset),'.','Color',color_raw);
+    plot(t_s, smooth(total_force(subset),force_smoothing),...
+        '-','LineWidth',2,'Color',color_smooth);
+    xlabel('Time (s)');
+    ylabel(['Force (' units_xy ')']);
+    axis tight;
+end;
 
 %plot the angle of the force vector
 h_angle = figure;
@@ -707,19 +789,30 @@ title('Angle of the force vector');
 axis tight;
 
 %plot the rotated angle
-subplot(2,1,2);
-%plot(time_s(subset_start:subset_end),theta(subset_start:subset_end),'.r');
-plot(theta_r(subset),'.');
-hold on;
-%add pi/2 and -pi/2 lines to the plot for reference
-%plot(time_s(subset_start:subset_end),pi/2*ones(1,length(theta(subset_start:subset_end))),'-k');
-%plot(time_s(subset_start:subset_end),-pi/2*ones(1,length(theta(subset_start:subset_end))),'-k');
+if ~legacy_format
+    subplot(2,1,2);
+    %plot(time_s(subset_start:subset_end),theta(subset_start:subset_end),'.r');
+    plot(theta_r(subset),'.');
+    hold on;
+    %add pi/2 and -pi/2 lines to the plot for reference
+    %plot(time_s(subset_start:subset_end),pi/2*ones(1,length(theta(subset_start:subset_end))),'-k');
+    %plot(time_s(subset_start:subset_end),-pi/2*ones(1,length(theta(subset_start:subset_end))),'-k');
+    ylabel('Angle (degrees)');
+    xlabel('Substack frame #');
+    %xlabel('Time (s)');
+    title('Angle of the force vector ROTATED');
+else
+    subplot(2,1,2);
+    %plot(time_s(subset_start:subset_end),theta(subset_start:subset_end),'.r');
+    plot(t_s, theta_r(subset),'.');
+    hold on;
+    %add pi/2 and -pi/2 lines to the plot for reference
+    %plot(t_s,90*ones(1,length(theta(subset))),'-k');
+    %plot(t_s,-90*ones(1,length(theta(subset))),'-k');
+    xlabel('Time (s)');
+end;
 ylabel('Angle (degrees)');
-xlabel('Substack frame #');
-%xlabel('Time (s)');
-title('Angle of the force vector ROTATED');
 axis tight;
-
 %so far we have been dealing vith vector quantities (such as force and trap
 %separation) in the laboratory frame of reference connected to the camera
 %pixels.
@@ -733,93 +826,113 @@ axis tight;
 
 
 %% plot force v displacement curve
-%in the lab reference frame
-total_force_subset = total_force(subset); %total force
-trap_dist_subset = trap_dist(subset);     %trap distance
-force_y_subset = force_y(subset);         %force y
-force_x_subset = force_x(subset);         %force x
-pos_x_nm_subset = pos_x_nm_corrected(subset);
-pos_y_nm_subset = pos_y_nm_corrected(subset);
-
-
-%in the trap line reference frame
-total_force_subset_r = total_force_r(subset);
-trap_dist_subset_r = trap_dist(subset); %trap distance is the same
-force_y_subset_r = force_y_r(subset);
-force_x_subset_r = force_x_r(subset);
-
-%plot a figure for user input of the force-displacement interval
-h_force_vs_displacement = figure;
-plot(trap_dist_subset, total_force_subset,'.','Color',color_raw);
-hold on;
-plot(trap_dist_subset, smooth(total_force_subset,force_smoothing),'.','LineWidth',2,'Color',color_smooth);
-ylabel(['Force (' units_xy ')']);
-xlabel('Trap separation (nm)');
-title('Force - distance curve raw');
-axis tight;
-[limit_disp, limit_force] = ginput(2);
-trap_dist_fd_ind = ...
-    find(trap_dist_subset >= limit_disp(1) & trap_dist_subset <= limit_disp(2));
-
-%variables in the lab reference frame
-trap_dist_fd_curve = trap_dist_subset(trap_dist_fd_ind);
-total_force_fd_curve = total_force_subset(trap_dist_fd_ind);
-force_y_fd_curve = force_y_subset(trap_dist_fd_ind);
-force_x_fd_curve = force_x_subset(trap_dist_fd_ind);
-bead_dist_fd_curve = bead_dist_subset(trap_dist_fd_ind);
-
-%bead_dist_fd_curve_bf = bead_dist_bf(trap_dist_fd_ind);
-
-%variables in the trap line reference frame
-trap_dist_fd_curve_r = trap_dist_subset_r(trap_dist_fd_ind);
-total_force_fd_curve_r = total_force_subset_r(trap_dist_fd_ind);
-force_y_fd_curve_r = force_y_subset_r(trap_dist_fd_ind);
-force_x_fd_curve_r = force_x_subset_r(trap_dist_fd_ind);
-
-%plot total force v displacement
-h_force_vs_displacement_corrected = figure;
-plot(trap_dist_fd_curve, total_force_fd_curve,'.','Color',color_raw);
-hold on;
-%plot(trap_dist_fd_curve, smooth(total_force_fd_curve,force_smoothing),'.','LineWidth',2,'Color',color_smooth);
-ylabel(['Force (' units_xy ')']);
-xlabel('Trap separation (nm)');
-title('Force - distance curve');
-axis tight;
-
-%bin force based on the fixed trap displacement values and plot that
-bin_width = 10; %width of the bin in nm;
-[trap_dist_binned, force_binned, force_error] = binned_xy(trap_dist_fd_curve, total_force_fd_curve, false, bin_width);
-errorbar(trap_dist_binned, force_binned, force_error,'o','Color',color_average,'LineWidth',1);
-%also bin in the rotated frame
-[trap_dist_binned_r, force_binned_r, force_error_r] = binned_xy(trap_dist_fd_curve_r, total_force_fd_curve_r, false, bin_width);
-%bin force vs bead displacement
-[bead_dist_binned, force_binned_b, force_error_b] = binned_xy(bead_dist_fd_curve, total_force_fd_curve, false, bin_width);
-errorbar(bead_dist_binned, force_binned_b, force_error_b,'.');
-
-%plot y-force v displacement
-h_y_force_vs_displacement_corrected = figure;
-plot(trap_dist_fd_curve, force_y_fd_curve,'.','Color',color_raw);
-hold on;
-plot(trap_dist_fd_curve, smooth(force_y_fd_curve,force_smoothing),'.','LineWidth',2,'Color',color_smooth);
-plot(trap_dist_fd_curve_r, smooth(force_y_fd_curve_r,force_smoothing),'.','LineWidth',2,'Color','blue');
-ylabel(['Force (' units_xy ')']);
-xlabel('Trap separation (nm)');
-title('Y-axis Force - distance curve');
-axis tight;
-legend('raw F_y', 'smoothed F_y', 'rotated F_y');
-
-%plot x-force v displacement
-h_x_force_vs_displacement_corrected = figure;
-plot(trap_dist_fd_curve, force_x_fd_curve,'.','Color',color_raw);
-hold on;
-plot(trap_dist_fd_curve, smooth(force_x_fd_curve,force_smoothing),'.','LineWidth',2,'Color',color_smooth);
-plot(trap_dist_fd_curve_r, smooth(force_x_fd_curve_r,force_smoothing),'.','LineWidth',2,'Color','blue');
-ylabel(['Force (' units_xy ')']);
-xlabel('Trap separation (nm)');
-title('X-axis Force - distance curve');
-axis tight;
-legend('raw F_x', 'smoothed F_x', 'rotated F_x');
-
+if ~legacy_format
+    %in the lab reference frame
+    total_force_subset = total_force(subset); %total force
+    trap_dist_subset = trap_dist(subset);     %trap distance
+    force_y_subset = force_y(subset);         %force y
+    force_x_subset = force_x(subset);         %force x
+    pos_x_nm_subset = pos_x_nm_corrected(subset);
+    pos_y_nm_subset = pos_y_nm_corrected(subset);
+    bead_dist_subset = bead_dist(subset);
+    bead_dist_x_subset = bead_separation_x(subset);
+    bead_dist_y_subset = bead_separation_y(subset);
+    
+    %in the trap line reference frame
+    total_force_subset_r = total_force_r(subset);
+    trap_dist_subset_r = trap_dist(subset); %trap distance is the same
+    force_y_subset_r = force_y_r(subset);
+    force_x_subset_r = force_x_r(subset);
+    bead_dist_subset_r = bead_dist_r(subset);
+    bead_dist_x_subset_r = bead_separation_x_r(subset);
+    bead_dist_y_subset_r = bead_separation_y_r(subset);
+    
+    %plot a figure for user input of the force-displacement interval
+    h_force_vs_displacement = figure;
+    plot(trap_dist_subset, total_force_subset,'.','Color',color_raw);
+    hold on;
+    plot(trap_dist_subset, smooth(total_force_subset,force_smoothing),'.','LineWidth',2,'Color',color_smooth);
+    ylabel(['Force (' units_xy ')']);
+    xlabel('Trap separation (nm)');
+    title('Force - distance curve raw');
+    axis tight;
+    [limit_disp, limit_force] = ginput(2);
+    trap_dist_fd_ind = ...
+        find(trap_dist_subset >= limit_disp(1) & trap_dist_subset <= limit_disp(2));
+    
+    %variables in the lab reference frame
+    trap_dist_fd_curve = trap_dist_subset(trap_dist_fd_ind);
+    total_force_fd_curve = total_force_subset(trap_dist_fd_ind);
+    force_y_fd_curve = force_y_subset(trap_dist_fd_ind);
+    force_x_fd_curve = force_x_subset(trap_dist_fd_ind);
+    bead_dist_fd_curve = bead_dist_subset(trap_dist_fd_ind);
+    bead_dist_x_fd_curve = bead_dist_x_subset_r(trap_dist_fd_ind);
+    bead_dist_y_fd_curve = bead_dist_y_subset_r(trap_dist_fd_ind);
+    
+    %bead_dist_fd_curve_bf = bead_dist_bf(trap_dist_fd_ind);
+    
+    %variables in the trap line reference frame
+    trap_dist_fd_curve_r = trap_dist_subset_r(trap_dist_fd_ind);
+    total_force_fd_curve_r = total_force_subset_r(trap_dist_fd_ind);
+    force_y_fd_curve_r = force_y_subset_r(trap_dist_fd_ind);
+    force_x_fd_curve_r = force_x_subset_r(trap_dist_fd_ind);
+    bead_dist_fd_curve_r = bead_dist_subset_r(trap_dist_fd_ind);
+    bead_dist_x_fd_curve_r = bead_dist_x_subset_r(trap_dist_fd_ind);
+    bead_dist_y_fd_curve_r = bead_dist_y_subset_r(trap_dist_fd_ind);
+    
+    %plot total force v trap distance
+    h_force_vs_displacement_corrected = figure;
+    h_plot = plot(trap_dist_fd_curve, total_force_fd_curve,'.','Color',color_raw);
+    h_plot.DisplayName = 'F vs trap separation raw';
+    hold on;
+    %plot(trap_dist_fd_curve, smooth(total_force_fd_curve,force_smoothing),'.','LineWidth',2,'Color',color_smooth);
+    ylabel(['Force (' units_xy ')']);
+    xlabel('Trap separation (nm)');
+    title('Total Force - distance curve');
+    axis tight;
+    
+    %bin force based on the fixed trap displacement values and plot that
+    bin_width = 10; %width of the bin in nm;
+    [trap_dist_binned, force_binned, force_error] = binned_xy(trap_dist_fd_curve, total_force_fd_curve, false, bin_width);
+    h_plot = errorbar(trap_dist_binned, force_binned, force_error,'o','Color',color_average,'LineWidth',1);
+    h_plot.DisplayName = 'F vs trap separation binned';
+    %also bin in the rotated frame
+    [trap_dist_binned_r, force_binned_r, force_error_r] = binned_xy(trap_dist_fd_curve_r, total_force_fd_curve_r, false, bin_width);
+    %bin force vs bead displacement
+    %WARNING: binning and averaging these variables be erroneous due to correlated
+    %nature of bead distance and force
+    [bead_dist_binned, force_binned_b, force_error_b] = binned_xy(bead_dist_fd_curve, total_force_fd_curve, false, bin_width);
+    h_plot = errorbar(bead_dist_binned, force_binned_b, force_error_b,'.');
+    h_plot.DisplayName = 'F vs bead separation binned';
+      
+    %plot y-force v trap displacement
+    h_y_force_vs_displacement_corrected = figure;
+    %plot(trap_dist_fd_curve, force_y_fd_curve,'.','Color',color_raw);
+    hold on;
+    %plot(trap_dist_fd_curve, smooth(force_y_fd_curve,force_smoothing),'.','LineWidth',2,'Color',color_smooth);
+    plot(trap_dist_fd_curve_r, force_y_fd_curve_r,'.');
+        
+    %plot(bead_dist_y_fd_curve, force_y_fd_curve,'.'); %force_y vs bead_dist_y
+    plot(bead_dist_y_fd_curve_r, force_y_fd_curve_r,'.');
+    
+    ylabel(['Force (' units_xy ')']);
+    xlabel('Trap separation (nm)');
+    title('Y-axis Force - distance curve');
+    axis tight;
+    %legend('raw F_y', 'smoothed F_y', 'smoothed rotated F_y', 'raw F_y vs bead dist', 'raw rotated F_y vs bead dist');
+    
+    %plot x-force v displacement
+    h_x_force_vs_displacement_corrected = figure;
+    plot(trap_dist_fd_curve, force_x_fd_curve,'.','Color',color_raw);
+    hold on;
+    plot(trap_dist_fd_curve, smooth(force_x_fd_curve,force_smoothing),'.','LineWidth',2,'Color',color_smooth);
+    plot(trap_dist_fd_curve_r, smooth(force_x_fd_curve_r,force_smoothing),'.','LineWidth',2,'Color','blue');
+    ylabel(['Force (' units_xy ')']);
+    xlabel('Trap separation (nm)');
+    title('X-axis Force - distance curve');
+    axis tight;
+    legend('raw F_x', 'smoothed F_x', 'rotated F_x');
+end;
 
 %% get user input to determine the laser trap position
 %set the force measurement point center point on the image
@@ -837,7 +950,7 @@ while (~user_satisfied)
         disp(['Working with video file: ' img_fname]);
         img_info = imfinfo(fname);
         total_frames = length(img_info);
-        image_index = subset_start;
+        image_index = subset_start+50;
         img = imread(fname, image_index);
         [m,n,l] = size(img); %m is y-axis, n is x-axis
         img_dimensions = min(size(img));
@@ -849,11 +962,12 @@ while (~user_satisfied)
         
         disp(['Calculated overlay scale: ' num2str(overlay_scale) ' pix/pN']);
         
+        trap_overlay_radius = 12.5;
         
         x_0 = round(n/2);
         y_0 = round(m/2);
         if (traps_recorded)
-            [overlay_img, vector_img] = overlay_force_vector_with_traps(img,x_0,y_0,force_x(image_index),force_y(image_index), overlay_scale, [1,1],trap1(image_index,:),trap2(image_index,:),10,true);
+            [overlay_img, vector_img] = overlay_force_vector_with_traps(img,x_0,y_0,force_x(image_index),force_y(image_index), overlay_scale, [1,1],trap1(image_index,:),trap2(image_index,:),trap_overlay_radius,true);
         else
             overlay_img = overlay_force_vector(img,x_0,y_0,force_x(image_index),force_y(image_index), overlay_scale, [1,1]);
         end;
@@ -866,7 +980,7 @@ while (~user_satisfied)
         
         %create new overlay image
         if (traps_recorded)
-            [overlay_img, vector_img] = overlay_force_vector_with_traps(img,x_0,y_0,force_x(image_index),force_y(image_index), overlay_scale, [1,1],trap1(image_index,:),trap2(image_index,:),10,true);
+            [overlay_img, vector_img] = overlay_force_vector_with_traps(img,x_0,y_0,force_x(image_index),force_y(image_index), overlay_scale, [1,1],trap1(image_index,:),trap2(image_index,:),trap_overlay_radius,true);
         else
             overlay_img = overlay_force_vector(img,x_0,y_0,force_x(image_index),force_y(image_index), overlay_scale, [1,1]);
         end;
@@ -896,7 +1010,7 @@ if (images_saved)
         img = imread(fname, image_index);
         if (traps_recorded)
             [overlay_img, vector_img] = ...%overlay_force_vector(img,x_0,y_0,force_x(image_index),force_y(image_index), overlay_scale, [1,1]);
-                overlay_force_vector_with_traps(img,x_0,y_0,force_x(image_index),force_y(image_index), overlay_scale, [1,1],trap1(image_index,:),trap2(image_index,:),10,true);
+                overlay_force_vector_with_traps(img,x_0,y_0,force_x(image_index),force_y(image_index), overlay_scale, [1,1],trap1(image_index,:),trap2(image_index,:),trap_overlay_radius,true);
         else
             overlay_img = overlay_force_vector(img,x_0,y_0,force_x(image_index),force_y(image_index), overlay_scale, [1,1]);
             %vector_img = overlay_img;
@@ -952,15 +1066,16 @@ savefig(h_fig_all_frames,f_filename)
 f_filename = [analysis_path 'force'];
 savefig(h_force_frames,f_filename);
 
-% f_filename = [analysis_path 'z-position'];
-% savefig(h_fig_z_frames,f_filename);
-
-f_filename = [analysis_path 'force-displacement'];
-savefig(h_force_vs_displacement_corrected,f_filename);
-
 angle_filename = [analysis_path 'angle'];
 savefig(h_angle,angle_filename);
 disp('Figures saved!');
+
+% f_filename = [analysis_path 'z-position'];
+% savefig(h_fig_z_frames,f_filename);
+if ~legacy_format
+    f_filename = [analysis_path 'force-displacement'];
+    savefig(h_force_vs_displacement_corrected,f_filename);
+end;
 
 %save all variables and open figures
 disp(['Saving data ...']);
@@ -968,32 +1083,40 @@ var_fname = [analysis_path 'raw_data'];
 save(var_fname);
 disp(['Data saved in ' var_fname ' folder!']);
 
-%save specific variables for the force-displacement curve:
-%trap_dist_fd_curve
-%total_force_fd_curve
-%force_y_fd_curve
-%force_x_fd_curve
-%trap_dist_binned
-%force_binned
-disp('Saving force-distance variables');
-var_fname = [analysis_path 'forces-displacement_vars'];
-save(var_fname,...
-    'bead_dist_fd_curve','trap_dist_fd_curve','total_force_fd_curve','force_y_fd_curve',...
-    'force_x_fd_curve','trap_dist_binned','force_binned');
-disp(['Data saved in ' var_fname ' folder!']);
-
-%save variables specific to the force-displacement curve in the rotated
-%frame that corresponds to line of traps
-%trap_dist_fd_curve_r
-%total_force_fd_curve_r
-%force_y_fd_curve_r
-%force_x_fd_curve_r
-%trap_dist_binned_r
-%force_binned_r
-disp('Saving force-distance variables in the bundle reference frame');
-bead_dist_fd_curve_r = bead_dist_fd_curve; %since distances are not affected by rotation 
-%we just re-define this variable. 
-var_fname = [analysis_path 'forces-displacement_vars_bundle_frame.mat'];
-save(var_fname,'bead_dist_fd_curve', 'trap_dist_fd_curve_r','total_force_fd_curve_r','force_y_fd_curve_r',...
-    'force_x_fd_curve_r','trap_dist_binned_r','force_binned_r');
-disp(['Data saved in ' var_fname ' folder!']);
+if ~legacy_format
+    %save specific variables for the force-displacement curve:
+    %trap_dist_fd_curve
+    %total_force_fd_curve
+    %force_y_fd_curve
+    %force_x_fd_curve
+    %trap_dist_binned
+    %force_binned
+    disp('Saving force-distance variables');
+    var_fname = [analysis_path 'forces-displacement_vars'];
+    save(var_fname,...
+        'bead_dist_fd_curve','trap_dist_fd_curve','total_force_fd_curve','force_y_fd_curve',...
+        'force_x_fd_curve','trap_dist_binned','force_binned');
+    disp(['Data saved in ' var_fname ' folder!']);
+    
+    %save variables specific to the force-displacement curve in the rotated
+    %frame that corresponds to line of traps
+    %trap_dist_fd_curve_r
+    %total_force_fd_curve_r
+    %force_y_fd_curve_r
+    %force_x_fd_curve_r
+    %trap_dist_binned_r
+    %force_binned_r
+    disp('Saving force-distance variables in the bundle reference frame');
+    
+    var_fname = [analysis_path 'forces-displacement_vars_bundle_frame.mat'];
+    %tmp fix for new variables
+    bead_dist_x_fd_curve_r = bead_dist_x_fd_curve_r';
+    bead_dist_fd_curve_r = bead_dist_fd_curve_r';
+    bead_dist_y_fd_curve_r = bead_dist_y_fd_curve_r';
+    save(var_fname,...
+        'bead_dist_fd_curve_r', 'bead_dist_x_fd_curve_r', 'bead_dist_y_fd_curve_r',...
+        'trap_dist_fd_curve_r',...
+        'total_force_fd_curve_r','force_y_fd_curve_r','force_x_fd_curve_r',...
+        'trap_dist_binned_r','force_binned_r');
+    disp(['Data saved in ' var_fname ' folder!']);
+end;
