@@ -38,5 +38,6 @@ set(h_axes, 'FontSize', 20);
 grid on;
 box on;
 legend show;
+axis tight;
 end
 

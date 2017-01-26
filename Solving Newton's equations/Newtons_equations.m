@@ -14,8 +14,8 @@ function [result] = Newtons_equations(t, values, parameters)
 v = values(1);
 x = values(2);
 
-k = 1;
-g = 1;
+k = 2;
+g = 0.2;
 
 a = -k*x - g*v;
 

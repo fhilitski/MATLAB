@@ -10,7 +10,7 @@ f = 2/sqrt(pi);
 r_g = f*8; %nm, PEG radius of gyration;
 
 
-c = 10; % %mg/ml, PEG concentration
+c = 1.0; % %mg/ml, PEG concentration
 cK = 0.100; % Molar, concentration of K+ ions
 
 epsilon = 81;%dielectic constant of water
