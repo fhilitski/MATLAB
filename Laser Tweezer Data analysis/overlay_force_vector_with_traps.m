@@ -167,13 +167,13 @@ for theta = 0:0.01:2*pi
     y_circle = round(point_y + trap2(2) + radius*sin(theta));
     %traps can be located outside the image (or the selected ROI)
     %make sure these coordinates are handled properly
-    if (x_circle <= 0)
+    if (x_circle <= 1)
         x_circle = 1+1;
     end;
     if (x_circle >= n)
         x_circle = n-1;
     end;
-    if (y_circle <= 0)
+    if (y_circle <= 1)
         y_circle = 1+1;
     end;
     

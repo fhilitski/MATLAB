@@ -172,7 +172,6 @@ hold on;
 plot(handles.contour(:,1),handles.contour(:,2),'LineWidth',2)
 
 
-
 %Plots intensity profile, its derivative and threshold with set parameters.
 function update_profile_plots(hObject, eventdata, handles)
 
@@ -195,11 +194,6 @@ y = ylim;
 y(2) = y(2) + 10;
 ylim(y);
 hold off;
-
-
-
-
-
 
 % --- Outputs from this function are returned to the command line.
 function varargout = FilamentTrackerII_OutputFcn(hObject, eventdata, handles)
@@ -396,7 +390,7 @@ for count = 1:total
     %also, there are problems with really short filaments
     %define a threshold amount of data-points necessary to track a single
     %filament in a frame
-    points_threshold = 25;
+    points_threshold = 2.5;
     if (length(f) < points_threshold)
         disp(['Filament is too short for tracking in frame #', num2str(count)]);
         x(count,:) = [count,0,0,0];

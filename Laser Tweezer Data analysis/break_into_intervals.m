@@ -39,59 +39,89 @@ color_smooth = [ 0.502  0.502   0.502];
 %define color for block-averaged data
 color_average = [0  0.447   0.741];
 units_xy = 'pN';
+
 %bin width for plotting binned force-displacement curves in nm
+%this is default value, which can be customized further
 bin_width = 10;
 
 %the neccessary variables are
 %trap_dist_fd_curve = d;
 %total_force_fd_curve;
 
-n_data = length(trap_dist_fd_curve); %data length
+%data length
+n_data = length(trap_dist_fd_curve);
 
-%ask the user to privide intervals for the different regions...
+%ask the user to provide intervals for the different regions...
 h_fig_ui = figure;
 plot(1:1:n_data,trap_dist_fd_curve);
 axis tight;
 hold on;
+title('Split run into intervals...');
+prettify_plot(gcf);
+legend hide;
 
-[index_d_borders,d_borders] = ginput;
-index_d_borders = round(index_d_borders);
-n_intervals = length(d_borders)+1; %number of intervals provided by the user
+%find max trap distances
+[peaks, peak_indeces] = findpeaks(trap_dist_fd_curve);
+plot(peak_indeces, peaks,'o'); 
+%find min trap distances
+[min_peaks, min_peak_indeces] = findpeaks(-trap_dist_fd_curve);
+plot(min_peak_indeces, -min_peaks, 'o');
+%marge the indeces for min and max
+index_d_borders = sort([peak_indeces' min_peak_indeces']);
+d_borders = trap_dist_fd_curve(index_d_borders);
 
-%initialize variables for to store data for separat intervals
-d_start = 0;
-d_end = 0;
-intervals = cell(1,n_intervals);
-distances = intervals;
-forces = intervals;
-forces_x = intervals;
-forces_y = intervals;
-bead_distances = intervals;
-bead_distances_bf = intervals;
-
-%split data into the intervals according to the user input
-for i = 1:n_intervals
-    d_start = d_end+1;
-    if i == n_intervals
-        d_end = n_data;
-    else
-        d_end = index_d_borders(i);
+user_satisfied = false;
+while ~user_satisfied
+    
+    %number of intervals provided by the user or automated process
+    n_intervals = length(d_borders)+1;
+    
+    %initialize variables for to store data for separat intervals
+    d_start = 0;
+    d_end = 0;
+    intervals = cell(1,n_intervals);
+    distances = intervals;
+    forces = intervals;
+    forces_x = intervals;
+    forces_y = intervals;
+    bead_distances = intervals;
+    bead_distances_bf = intervals;
+    
+    %split data into the intervals according to the user input
+    for i = 1:n_intervals
+        d_start = d_end+1;
+        if i == n_intervals
+            d_end = n_data;
+        else
+            d_end = index_d_borders(i);
+        end;
+        
+        intervals{i} = d_start:1:d_end;
+        distances{i} = trap_dist_fd_curve(intervals{i});
+        forces{i} = total_force_fd_curve(intervals{i});
+        forces_y{i} = -force_y_fd_curve(intervals{i});
+        forces_x{i} = force_x_fd_curve(intervals{i});
+        bead_distances{i} = bead_dist_fd_curve(intervals{i});
+        bead_distances_bf{i} = bead_dist_fd_curve_bf(intervals{i});
+        
+        %display regions on the plot.
+        h_line = plot(intervals{i}, distances{i},'.');
+        h_line.DisplayName = ['Interval: ' num2str(i)];
+        h_line.Tag = [num2str(i)];
     end;
-    
-    intervals{i} = d_start:1:d_end;
-    distances{i} = trap_dist_fd_curve(intervals{i});
-    forces{i} = total_force_fd_curve(intervals{i});
-    forces_y{i} = -force_y_fd_curve(intervals{i});
-    forces_x{i} = force_x_fd_curve(intervals{i});
-    bead_distances{i} = bead_dist_fd_curve(intervals{i});
-    bead_distances_bf{i} = bead_dist_fd_curve_bf(intervals{i});
-    
-    %display regions on the plot.
-    h_line = plot(intervals{i}, distances{i},'.');
-    h_line.DisplayName = ['Interval: ' num2str(i)];
-    h_line.Tag = [num2str(i)];
+    user_satisfied = questdlg('Intervals look OK?', ...
+        'User input required',...
+        'Yes',...
+        'No',...
+        'Yes');
+    if strcmp(user_satisfied, 'No')
+        user_satisfied = false;
+        [index_d_borders,d_borders] = ginput;
+        index_d_borders = round(index_d_borders);
+    else
+        user_satisfied = true;
+    end;
 end;
-
 
 
 %% plot separation v frame
@@ -103,7 +133,6 @@ for i = 1: n_intervals
     end;
 end;
 hold off;
-
 % plot forces vs frame
 figure;
 for i = 1: n_intervals
@@ -191,10 +220,6 @@ if ~exist('bead_distances_bf', 'var')
     bead_distances_bf = bead_distances;
 end;
 
-if ~exist('bin_width', 'var')
-    bin_width = 10;
-end;
-
 for i=relevant
     d = cat(1, d, distances{i});
     b_d = cat(1, b_d, bead_distances{i});
@@ -215,10 +240,17 @@ title('Force - distance curve');
 axis tight;
 grid on;
 
+%determine the bin width
+%separations in each step
+dd = abs(d(2:end)-d(1:end-1));
+positive_dd = dd(find(dd > 0));
+bin_width = min(positive_dd);
+disp(['Setting the bin width to: ' num2str(bin_width)]);
+
 %bin force based on the fixed displacement values and plot that
 [trap_dist_binned, force_binned, force_error] = binned_xy(d,f,false,bin_width);
 errorbar(trap_dist_binned, force_binned, force_error,'.','Color',...
-    color_average,'LineWidth',1);
+    color_average,'LineWidth',0.5);
 plot(trap_dist_binned, force_binned,'-');
 
 %find the separation that corresponds to min. force - that's the
@@ -235,17 +267,18 @@ while ~user_satisfied
     hold on;
     h_d_min_plot = plot(d_min, f_min, 'or','LineWidth',3,'MarkerSize',10);
 
-    prompt = 'Like the equilibrium point? [Y/N]: ';
-    str = input(prompt,'s');
-    if isempty(str)
-        str = 'Y';
-    end
-    if (str == 'Y') 
-        user_satisfied = true;
-    else
+    response_str = questdlg('Like the equilibrium point?', ...
+        'User input required',...
+        'Yes',...
+        'No',...
+        'Yes');
+    if strcmp(response_str, 'No')
+        user_satisfied = false;
         disp('Please select the point on the graph...');
         [d_min_input, f_min_input] = ginput(1);
         d_min = trap_dist_binned(find(trap_dist_binned <= d_min_input, 1, 'last'));
+    else
+        user_satisfied = true;
     end;
 end;
 
@@ -538,7 +571,7 @@ legend({'Trap separation', 'Bead Separation'});
 
 
 %% analysis with fraying
-fraying = true;
+fraying = false;
 if (fraying)
     d_fwd = [];
     d_back = [];
@@ -550,8 +583,8 @@ if (fraying)
     f_fwd_y = [];
     f_fwd_x = [];
     
-    %relevant_fwd = [8 10 12 14 16];% 18 22 24];
-    %relevant_back = [11 15 19 21 23 26];
+    relevant_fwd = [5 7 11 13 15 19];
+    relevant_back = [4 6 8 12 14 16];
     
     for i=relevant_fwd
         d_fwd = cat(1, d_fwd, distances{i});
@@ -676,7 +709,7 @@ end;
 
 %% save data
 fp_initial = filepath;
-filepath = [fp_initial 'intervals\'];
+filepath = [fp_initial 'intervals ' num2str(relevant(1)) '-' num2str(relevant(end)) '\'];
 mkdir(filepath);
 filename = [filepath 'force-displacement intervals.mat'];
 if (fraying)

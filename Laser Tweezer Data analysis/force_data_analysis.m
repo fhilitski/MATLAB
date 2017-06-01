@@ -4,13 +4,13 @@ clear all;
 close all;
 
 %% Set-up file path and names
-path ='D:\Data - MT Sliding and Friction\2017\01-25-2017\';
+path ='D:\Data - MT Sliding and Friction\2017\01-31-2017 1% PEG 200 mM K+ single MT and bundle buckling\';
 findcenter_path = 'findcenter 2\';
 findcenter_path = [path findcenter_path];
-findcenter_scan = 3;
-data_path = 'force 1\';
+findcenter_scan = 1;
+data_path = 'force 6\';
 acquisition_fname = 'acquisition.csv';
-cal_fname = ['cal 1 trap' '.dat'];
+cal_fname = ['cal 1 trap 0.73W' '.dat'];
 
 number_of_traps_calibration = 1;
 %calibratedpath stiffness is divided by the number of traps in a run
@@ -194,7 +194,7 @@ end;
 if (analyze_calibration)
     min_points_to_average = 10; %parameter for analyze_tweezer_calibration
     high_frequency_cutoff = 10000; %parameter for analyze_tweezer_calibration
-    low_frequency_cutoff = 20;
+    low_frequency_cutoff = 50;
     cal_averages = 2^5;
     [fc_x,fc_y, diff_x, diff_y] =...
         analyze_tweezer_calibration(findcenter_path, cal_fname, cal_averages,...
@@ -701,13 +701,13 @@ else
 %     title('Measured force in x-direction');
 %     axis tight;
 %     
-%     %plot F_x versus frame #
-%     h_fig_x_frames = figure;
-%     plot(force_x(subset), '.-');
-%     ylabel(['Force (' units_xy ')']);
-%     xlabel('Frame #');
-%     title('Measured force in x-direction');
-%     axis tight;
+    %plot F_x versus frame #
+    h_fig_x_frames = figure;
+    plot(force_x(subset), '.-');
+    ylabel(['Force (' units_xy ')']);
+    xlabel('Frame #');
+    title('Measured force in x-direction');
+    axis tight;
 %     
 %     %plot F_y vs time
 %     h_fig_y = figure;
@@ -717,13 +717,13 @@ else
 %     title('Measured force in y-direction');
 %     axis tight;
 %     
-%     %plot F_y versus frame #
-%     h_fig_y_frames = figure;
-%     plot(force_y(subset),'.-');
-%     ylabel(['Force (' units_xy ')']);
-%     xlabel('Frame #');
-%     title('Measured force in y-direction');
-%     axis tight;
+    %plot F_y versus frame #
+    h_fig_y_frames = figure;
+    plot(force_y(subset),'.-');
+    ylabel(['Force (' units_xy ')']);
+    xlabel('Frame #');
+    title('Measured force in y-direction');
+    axis tight;
 %     
 %     %plot z versus time
 %     h_fig_z = figure;
@@ -908,10 +908,9 @@ if ~legacy_format
     %plot y-force v trap displacement
     h_y_force_vs_displacement_corrected = figure;
     %plot(trap_dist_fd_curve, force_y_fd_curve,'.','Color',color_raw);
-    hold on;
     %plot(trap_dist_fd_curve, smooth(force_y_fd_curve,force_smoothing),'.','LineWidth',2,'Color',color_smooth);
     plot(trap_dist_fd_curve_r, force_y_fd_curve_r,'.');
-        
+     hold on;   
     %plot(bead_dist_y_fd_curve, force_y_fd_curve,'.'); %force_y vs bead_dist_y
     plot(bead_dist_y_fd_curve_r, force_y_fd_curve_r,'.');
     
@@ -919,7 +918,7 @@ if ~legacy_format
     xlabel('Trap separation (nm)');
     title('Y-axis Force - distance curve');
     axis tight;
-    %legend('raw F_y', 'smoothed F_y', 'smoothed rotated F_y', 'raw F_y vs bead dist', 'raw rotated F_y vs bead dist');
+    legend('raw rotated F_y vs trap dist', 'raw F_y vs bead dist', 'raw rotated F_y vs bead dist');
     
     %plot x-force v displacement
     h_x_force_vs_displacement_corrected = figure;
@@ -950,7 +949,7 @@ while (~user_satisfied)
         disp(['Working with video file: ' img_fname]);
         img_info = imfinfo(fname);
         total_frames = length(img_info);
-        image_index = subset_start+50;
+        image_index = subset_start+100;
         img = imread(fname, image_index);
         [m,n,l] = size(img); %m is y-axis, n is x-axis
         img_dimensions = min(size(img));
